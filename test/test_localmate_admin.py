@@ -1,4 +1,4 @@
-from test.test_support import LocalMateCase, run_localmate_cases
+from test_support import LocalMateCase, run_localmate_cases
 
 TEST_CASES = [
     LocalMateCase(

@@ -9,9 +9,10 @@ from langchain_google_genai import (
     GoogleGenerativeAIEmbeddings,
 )
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
 
-DB_DIR = Path("chroma_db")
+DB_DIR = PROJECT_ROOT / "chroma_db"
 EMBEDDING_MODEL = "models/gemini-embedding-001"
 CHAT_MODEL = "gemini-2.5-flash"
 MISSING_API_KEY_MESSAGE = ".env 파일에 GOOGLE_API_KEY를 설정해주세요."

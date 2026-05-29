@@ -2,7 +2,6 @@ import json
 import re
 from functools import lru_cache
 from pathlib import Path
-
 from prompts.traffic_prompts import (
     TRAFFIC_CARD_LOSS_QUESTION,
     TRAFFIC_FIXED_PLACE_ORIGIN_QUESTION,
@@ -15,7 +14,10 @@ CATEGORY_NAME = "traffic"
 ROUTE_PRIORITY = 30
 DISPLAY_CATEGORY = "교통"
 TRAFFIC_FILTER = {"category": "traffic"}
-PLACES_PATH = Path("data/places/ansan_fixed_places.json")
+PLACES_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "data/places/ansan_fixed_places.json"
+)
 
 SUB_TRANSPORT_CARD = "교통카드/결제"
 SUB_BUS = "버스 이용/환승"

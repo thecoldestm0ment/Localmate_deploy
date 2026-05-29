@@ -1,5 +1,5 @@
-from test.test_retriever_admin import TEST_CASES as ADMIN_CASES
-from test.test_retriever_traffic import TEST_CASES as TRAFFIC_CASES
+from test_retriever_admin import TEST_CASES as ADMIN_CASES
+from test_retriever_traffic import TEST_CASES as TRAFFIC_CASES
 from test.test_support import run_retriever_cases
 
 SMOKE_CASES = [

@@ -1,15 +1,37 @@
 import os
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from textwrap import shorten
+
+TEST_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = TEST_DIR.parent
+REEXEC_ENV = "LOCALMATE_TEST_REEXEC"
+
+if Path.cwd() != PROJECT_ROOT and os.environ.get(REEXEC_ENV) != "1":
+    env = os.environ.copy()
+    env[REEXEC_ENV] = "1"
+    script_path = TEST_DIR / Path(sys.argv[0]).name
+    completed = subprocess.run(
+        [sys.executable, str(script_path), *sys.argv[1:]],
+        cwd=PROJECT_ROOT,
+        env=env,
+    )
+    raise SystemExit(completed.returncode)
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
+os.chdir(PROJECT_ROOT)
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from localmate_graph import run_localmate_result
 
-DB_DIR = Path("chroma_db")
+DB_DIR = PROJECT_ROOT / "chroma_db"
 EMBEDDING_MODEL = "models/gemini-embedding-001"
 
 
@@ -33,7 +55,7 @@ class RetrieverCase:
 
 
 def ensure_ready() -> None:
-    load_dotenv()
+    load_dotenv(PROJECT_ROOT / ".env")
 
     if not os.getenv("GOOGLE_API_KEY"):
         raise RuntimeError(".env 파일에 GOOGLE_API_KEY를 설정해주세요.")
