@@ -1,6 +1,7 @@
 from categories.types import CategoryResult
 
 CATEGORY_NAME = "medical"
+ROUTE_PRIORITY = 10
 
 MEDICAL_KEYWORDS = (
     "병원", "의사", "진료", "진찰", "약국", "처방전", "처방", "감기약",
