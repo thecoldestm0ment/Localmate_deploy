@@ -13,6 +13,10 @@ FAQ_ROOT = Path("data/faq")
 DB_DIR = Path("chroma_db")
 EMBEDDING_MODEL = "models/gemini-embedding-001"
 SOURCE_METADATA_HEADER = "## source metadata"
+DEFAULT_REGION_BY_CATEGORY = {"traffic": "ansan"}
+DEFAULT_SOURCE_NAME = "LocalMate internal FAQ"
+DEFAULT_SOURCE_URL = "local"
+DEFAULT_LAST_CHECKED = "unknown"
 DISPLAY_CATEGORY_BY_CATEGORY = {
     "admin": "행정",
     "medical": "의료",
@@ -96,6 +100,30 @@ def guess_sub_category(path: Path) -> str:
     return path.stem.replace("_", " ")
 
 
+def infer_category(path: Path) -> str:
+    relative_parts = path.relative_to(FAQ_ROOT).parts
+    return relative_parts[0] if len(relative_parts) > 1 else "general"
+
+
+def build_metadata(path: Path, raw_metadata: dict[str, str]) -> dict[str, str]:
+    relative_source = path.relative_to(FAQ_ROOT).as_posix()
+    category = normalize_category(raw_metadata.get("category", infer_category(path)))
+    display_category = raw_metadata.get("display_category")
+    region = raw_metadata.get("region")
+
+    return {
+        "source": relative_source,
+        "category": category,
+        "display_category": display_category
+        or DISPLAY_CATEGORY_BY_CATEGORY.get(category, category),
+        "sub_category": raw_metadata.get("sub_category") or guess_sub_category(path),
+        "region": region or DEFAULT_REGION_BY_CATEGORY.get(category, "general"),
+        "source_name": raw_metadata.get("source_name") or DEFAULT_SOURCE_NAME,
+        "source_url": raw_metadata.get("source_url") or DEFAULT_SOURCE_URL,
+        "last_checked": raw_metadata.get("last_checked") or DEFAULT_LAST_CHECKED,
+    }
+
+
 def build_document(path: Path) -> Document | None:
     raw_content = path.read_text(encoding="utf-8").strip()
     if not raw_content:
@@ -105,29 +133,9 @@ def build_document(path: Path) -> Document | None:
     body_content, source_metadata = parse_source_metadata(without_frontmatter)
     combined_metadata = {**source_metadata, **frontmatter_metadata}
 
-    relative_source = path.relative_to(FAQ_ROOT).as_posix()
-    relative_parts = path.relative_to(FAQ_ROOT).parts
-    inferred_category = relative_parts[0] if len(relative_parts) > 1 else "general"
-    category = normalize_category(combined_metadata.get("category", inferred_category))
-    display_category = combined_metadata.get("display_category") or DISPLAY_CATEGORY_BY_CATEGORY.get(category, category)
-    sub_category = combined_metadata.get("sub_category") or guess_sub_category(path)
-    region = combined_metadata.get("region") or ("ansan" if category == "traffic" else "general")
-    source_name = combined_metadata.get("source_name") or "LocalMate internal FAQ"
-    source_url = combined_metadata.get("source_url") or "local"
-    last_checked = combined_metadata.get("last_checked") or "unknown"
-
     return Document(
         page_content=body_content,
-        metadata={
-            "source": relative_source,
-            "category": category,
-            "display_category": display_category,
-            "sub_category": sub_category,
-            "region": region,
-            "source_name": source_name,
-            "source_url": source_url,
-            "last_checked": last_checked,
-        },
+        metadata=build_metadata(path, combined_metadata),
     )
 
 

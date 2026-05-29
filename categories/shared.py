@@ -4,18 +4,23 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_google_genai import (
+    ChatGoogleGenerativeAI,
+    GoogleGenerativeAIEmbeddings,
+)
 
 load_dotenv()
 
 DB_DIR = Path("chroma_db")
 EMBEDDING_MODEL = "models/gemini-embedding-001"
 CHAT_MODEL = "gemini-2.5-flash"
+MISSING_API_KEY_MESSAGE = ".env 파일에 GOOGLE_API_KEY를 설정해주세요."
+MISSING_DB_MESSAGE = "먼저 python build_vector_db.py를 실행해주세요."
 
 
 def ensure_google_api_key() -> None:
     if not os.getenv("GOOGLE_API_KEY"):
-        raise RuntimeError(".env 파일에 GOOGLE_API_KEY를 설정해주세요.")
+        raise RuntimeError(MISSING_API_KEY_MESSAGE)
 
 
 @lru_cache(maxsize=1)
@@ -27,7 +32,7 @@ def get_embeddings() -> GoogleGenerativeAIEmbeddings:
 @lru_cache(maxsize=1)
 def get_vectorstore() -> Chroma:
     if not DB_DIR.exists():
-        raise RuntimeError("먼저 python build_vector_db.py를 실행해주세요.")
+        raise RuntimeError(MISSING_DB_MESSAGE)
     return Chroma(
         persist_directory=str(DB_DIR),
         embedding_function=get_embeddings(),

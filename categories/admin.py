@@ -15,24 +15,25 @@ GENERATION_ERROR_MESSAGE = "안내를 생성하는 중 오류가 발생했습니
 CLARIFY_CARD_QUESTION = (
     "어떤 카드를 잃어버리셨나요?\n1. 외국인등록증\n2. 은행 카드\n3. 교통카드/티머니\n4. 학생증"
 )
-ADMIN_KEYWORDS = [
-    "외국인등록증",
-    "외국인 등록증",
-    "비자",
-    "체류",
-    "체류기간",
-    "체류 자격",
-    "체류자격",
-    "출입국",
-    "주소",
-    "주소 변경",
-    "주소변경",
-    "이사",
-    "전입",
-    "등록증",
-    "행정",
-    "신고",
-]
+ADMIN_KEYWORDS = (
+    "외국인등록증", "외국인 등록증", "비자", "체류",
+    "체류기간", "체류 자격", "체류자격", "출입국",
+    "주소", "주소 변경", "주소변경", "이사",
+    "전입", "등록증", "행정", "신고",
+)
+LOSS_KEYWORDS = ("잃어버", "분실", "없어졌", "사라졌")
+ALIEN_CARD_KEYWORDS = (
+    "외국인등록증", "외국인 등록증",
+    "alien registration card", "arc",
+)
+GENERIC_CARD_KEYWORDS = ("카드", "등록증", "신분증")
+CARD_LOSS_EXCLUDE_KEYWORDS = ("은행", "교통")
+ADDRESS_KEYWORDS = ("주소 변경", "주소변경", "주소", "이사", "전입")
+VISA_KEYWORDS = (
+    "비자", "체류기간", "체류 기간", "체류자격",
+    "체류 자격", "연장", "만료", "체류",
+)
+VISIT_KEYWORDS = ("예약", "방문")
 
 
 class ActionPlanSchema(BaseModel):
@@ -74,9 +75,7 @@ def can_handle(user_input: str) -> bool:
     if has_any_keyword(text, ADMIN_KEYWORDS):
         return True
 
-    loss_keywords = ["잃어버", "분실", "없어졌", "사라졌"]
-    card_keywords = ["카드", "등록증", "신분증"]
-    return has_any_keyword(text, loss_keywords) and has_any_keyword(text, card_keywords)
+    return is_ambiguous_card_loss(text)
 
 
 def run_category(user_input: str) -> CategoryResult:
@@ -281,8 +280,16 @@ def normalize_text(text: str) -> str:
     return text.strip().lower()
 
 
-def has_any_keyword(text: str, keywords: list[str]) -> bool:
+def has_any_keyword(text: str, keywords: list[str] | tuple[str, ...]) -> bool:
     return any(keyword in text for keyword in keywords)
+
+
+def is_ambiguous_card_loss(text: str) -> bool:
+    return (
+        has_any_keyword(text, GENERIC_CARD_KEYWORDS)
+        and has_any_keyword(text, LOSS_KEYWORDS)
+        and not has_any_keyword(text, ALIEN_CARD_KEYWORDS + CARD_LOSS_EXCLUDE_KEYWORDS)
+    )
 
 
 def build_initial_state(user_input: str) -> AdminState:
@@ -309,34 +316,24 @@ def build_initial_state(user_input: str) -> AdminState:
 
 def classify_admin_node(state: AdminState) -> AdminState:
     text = normalize_text(state["user_input"])
-    loss_keywords = ["잃어버", "분실", "없어졌", "사라졌"]
-    specific_alien_card_keywords = ["외국인등록증", "외국인 등록증", "alien registration card", "arc"]
-    generic_card_keywords = ["카드", "등록증", "신분증"]
-    address_keywords = ["주소 변경", "주소변경", "주소", "이사", "전입"]
-    visa_keywords = ["비자", "체류기간", "체류 기간", "체류자격", "체류 자격", "연장", "만료", "체류"]
-    visit_keywords = ["예약", "방문"]
 
-    if has_any_keyword(text, specific_alien_card_keywords) and has_any_keyword(text, loss_keywords):
+    if has_any_keyword(text, ALIEN_CARD_KEYWORDS) and has_any_keyword(text, LOSS_KEYWORDS):
         sub_category = "외국인등록증 분실"
         needs_clarification = False
         clarifying_question = ""
-    elif (
-        has_any_keyword(text, generic_card_keywords)
-        and has_any_keyword(text, loss_keywords)
-        and not has_any_keyword(text, specific_alien_card_keywords + ["은행", "교통"])
-    ):
+    elif is_ambiguous_card_loss(text):
         sub_category = "애매함"
         needs_clarification = True
         clarifying_question = CLARIFY_CARD_QUESTION
-    elif has_any_keyword(text, address_keywords):
+    elif has_any_keyword(text, ADDRESS_KEYWORDS):
         sub_category = "주소 변경"
         needs_clarification = False
         clarifying_question = ""
-    elif has_any_keyword(text, visa_keywords):
+    elif has_any_keyword(text, VISA_KEYWORDS):
         sub_category = "체류기간 연장/비자"
         needs_clarification = False
         clarifying_question = ""
-    elif has_any_keyword(text, visit_keywords):
+    elif has_any_keyword(text, VISIT_KEYWORDS):
         sub_category = "기관 방문/예약"
         needs_clarification = False
         clarifying_question = ""

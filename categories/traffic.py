@@ -37,39 +37,37 @@ PRIMARY_SOURCE_BY_SUBCATEGORY = {
 }
 GENERATION_ERROR_MESSAGE = "안내를 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도하거나 설정을 확인해주세요."
 NO_DOCS_WARNING = "관련 교통 문서를 충분히 찾지 못했습니다. 공식 안내를 함께 확인해주세요."
-TRANSPORT_CARD_KEYWORDS = [
-    "교통카드",
-    "버스카드",
-    "티머니",
-    "캐시비",
-    "t-money",
-    "transportation card",
-]
-CARD_PAYMENT_KEYWORDS = ["충전", "잔액", "결제", "사용법"]
-BUS_KEYWORDS = ["버스", "bus", "환승", "하차", "정류장"]
-SUBWAY_KEYWORDS = ["지하철", "전철", "subway", "metro"]
-TAXI_KEYWORDS = ["택시", "taxi", "카카오택시"]
-LATE_NIGHT_KEYWORDS = ["막차", "첫차", "야간", "밤늦", "심야", "late night"]
-REALTIME_KEYWORDS = ["실시간", "몇 분 뒤", "언제 와", "도착 시간", "몇 시", "arrive", "arrival"]
-ROUTE_INTENT_KEYWORDS = [
-    "어떻게 가",
-    "가는 법",
-    "가려면",
-    "길찾기",
-    "길 찾기",
-    "이동",
-    "가고 싶",
-    "버스로",
-    "지하철로",
-    "전철로",
-    "택시 타고",
-    "타고 가",
-    "how to get",
-    "go to",
-]
-VAGUE_BUS_QUESTIONS = ["버스 타도 돼요?", "지하철 타도 돼요?", "전철 타도 돼요?"]
-GENERIC_CARD_KEYWORDS = ["카드", "등록증", "신분증", "card"]
-CARD_LOSS_KEYWORDS = ["잃어버", "분실", "없어졌", "사라졌", "lost"]
+TRANSPORT_CARD_KEYWORDS = (
+    "교통카드", "버스카드", "티머니",
+    "캐시비", "t-money", "transportation card",
+)
+CARD_PAYMENT_KEYWORDS = ("충전", "잔액", "결제", "사용법")
+BUS_KEYWORDS = ("버스", "bus", "환승", "하차", "정류장")
+SUBWAY_KEYWORDS = ("지하철", "전철", "subway", "metro")
+TAXI_KEYWORDS = ("택시", "taxi", "카카오택시")
+LATE_NIGHT_KEYWORDS = ("막차", "첫차", "야간", "밤늦", "심야", "late night")
+REALTIME_KEYWORDS = (
+    "실시간", "몇 분 뒤", "언제 와",
+    "도착 시간", "몇 시", "arrive", "arrival",
+)
+ROUTE_INTENT_KEYWORDS = (
+    "어떻게 가", "가는 법", "가려면", "길찾기", "길 찾기",
+    "이동", "가고 싶", "버스로", "지하철로", "전철로",
+    "택시 타고", "타고 가", "how to get", "go to",
+)
+VAGUE_BUS_QUESTIONS = (
+    "버스 타도 돼요?", "지하철 타도 돼요?", "전철 타도 돼요?",
+)
+GENERIC_CARD_KEYWORDS = ("카드", "등록증", "신분증", "card")
+CARD_LOSS_KEYWORDS = ("잃어버", "분실", "없어졌", "사라졌", "lost")
+TRAFFIC_MODE_KEYWORDS = (
+    BUS_KEYWORDS + SUBWAY_KEYWORDS + TAXI_KEYWORDS + LATE_NIGHT_KEYWORDS
+)
+GENERAL_DESTINATION_HINTS = (
+    "병원", "은행", "출입국", "사무소", "학교", "ERICA", "에리카",
+)
+TRANSIT_PAYMENT_CONTEXT = ("교통", "버스", "지하철", "티머니", "캐시비")
+TRANSIT_ROUTE_KEYWORDS = BUS_KEYWORDS + SUBWAY_KEYWORDS
 
 
 class TrafficState(TypedDict):
@@ -97,16 +95,16 @@ def can_handle(user_input: str) -> bool:
     if is_generic_card_loss(text):
         return False
 
-    if has_any_keyword(text, TRANSPORT_CARD_KEYWORDS):
+    if is_transport_card_question(text):
         return True
 
-    if has_any_keyword(text, BUS_KEYWORDS + SUBWAY_KEYWORDS + TAXI_KEYWORDS + LATE_NIGHT_KEYWORDS):
+    if has_any_keyword(text, TRAFFIC_MODE_KEYWORDS):
         return True
 
     if has_supported_place_alias(text) and has_route_like_intent(text):
         return True
 
-    if has_route_like_intent(text) and has_any_keyword(text, ["병원", "은행", "출입국", "사무소", "학교", "ERICA", "에리카"]):
+    if has_route_like_intent(text) and has_any_keyword(text, GENERAL_DESTINATION_HINTS):
         return True
 
     return False
@@ -212,13 +210,11 @@ def classify_traffic_node(state: TrafficState) -> TrafficState:
         sub_category = "막차/야간 이동"
     elif has_any_keyword(text, TAXI_KEYWORDS):
         sub_category = "택시 이용"
-    elif has_any_keyword(text, TRANSPORT_CARD_KEYWORDS) or (
-        has_any_keyword(text, CARD_PAYMENT_KEYWORDS) and has_any_keyword(text, ["교통", "버스", "지하철", "티머니", "캐시비"])
-    ):
+    elif is_transport_card_question(text):
         sub_category = "교통카드/결제"
     elif mentioned_places and route_like:
         sub_category = "고정 장소 이동"
-    elif has_any_keyword(text, BUS_KEYWORDS + SUBWAY_KEYWORDS):
+    elif has_any_keyword(text, TRANSIT_ROUTE_KEYWORDS):
         sub_category = "버스 이용/환승"
     elif mentioned_places:
         sub_category = "고정 장소 이동"
@@ -498,7 +494,7 @@ def normalize_text(text: str) -> str:
     return text.strip().lower()
 
 
-def has_any_keyword(text: str, keywords: list[str]) -> bool:
+def has_any_keyword(text: str, keywords: list[str] | tuple[str, ...]) -> bool:
     return any(keyword.lower() in text for keyword in keywords)
 
 
@@ -510,12 +506,22 @@ def is_generic_card_loss(text: str) -> bool:
     )
 
 
+def is_transport_card_question(text: str) -> bool:
+    return has_any_keyword(text, TRANSPORT_CARD_KEYWORDS) or (
+        has_any_keyword(text, CARD_PAYMENT_KEYWORDS)
+        and has_any_keyword(text, TRANSIT_PAYMENT_CONTEXT)
+    )
+
+
 def has_route_like_intent(text: str) -> bool:
     return has_any_keyword(text, ROUTE_INTENT_KEYWORDS)
 
 
 def is_realtime_arrival_request(text: str) -> bool:
-    return has_any_keyword(text, REALTIME_KEYWORDS) and has_any_keyword(text, BUS_KEYWORDS + SUBWAY_KEYWORDS)
+    return (
+        has_any_keyword(text, REALTIME_KEYWORDS)
+        and has_any_keyword(text, TRANSIT_ROUTE_KEYWORDS)
+    )
 
 
 @lru_cache(maxsize=1)

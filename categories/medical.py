@@ -2,40 +2,39 @@ from categories.types import CategoryResult
 
 CATEGORY_NAME = "medical"
 
-MEDICAL_KEYWORDS = [
+MEDICAL_KEYWORDS = (
     "병원", "의사", "진료", "진찰", "약국", "처방전", "처방", "감기약",
     "증상", "통증", "아파", "아프", "열", "기침", "감기", "응급",
     "응급실", "119", "상처", "화상", "코피", "부상", "두통", "복통",
     "설사", "구토", "치과", "내과", "보건소", "건강보험",
-]
+)
 
-EMERGENCY_KEYWORDS = [
+EMERGENCY_KEYWORDS = (
     "응급", "응급실", "119", "숨쉬기", "호흡", "기절",
     "쓰러", "피가 많이", "가슴 통증", "심한 화상", "부러",
-]
+)
 
-TRANSPORT_KEYWORDS = [
+TRANSPORT_KEYWORDS = (
     "버스", "지하철", "택시", "정류장",
     "역", "가는 법", "어떻게 가", "이동",
-]
+)
 
-MEDICAL_SYMPTOM_KEYWORDS = [
+MEDICAL_SYMPTOM_KEYWORDS = (
     "아파", "아프", "통증", "열", "기침",
     "감기", "두통", "복통", "설사", "구토", "상처",
-]
+)
 
-CARD_LOSS_KEYWORDS = ["잃어버", "분실", "없어졌", "사라졌"]
-
-MEDICAL_ADMIN_KEYWORDS = ["건강보험", "의료비", "본인부담금", "보건소"]
-
-PHARMACY_KEYWORDS = ["약국", "처방전", "처방", "감기약"]
-
-DENTAL_KEYWORDS = ["치과", "치통", "이빨", "치아"]
-
-VAGUE_MEDICAL_INPUTS = [
+CARD_LOSS_KEYWORDS = ("잃어버", "분실", "없어졌", "사라졌")
+MEDICAL_CARD_CONTEXT_KEYWORDS = (
+    "건강보험", "보험증", "의료", "진료", "보건소",
+)
+MEDICAL_ADMIN_KEYWORDS = ("건강보험", "의료비", "본인부담금", "보건소")
+PHARMACY_KEYWORDS = ("약국", "처방전", "처방", "감기약")
+DENTAL_KEYWORDS = ("치과", "치통", "이빨", "치아")
+VAGUE_MEDICAL_INPUTS = (
     "아파요", "아파", "몸이 안 좋아요",
     "몸이 안좋아요", "병원 가야 하나요", "병원 가고 싶어요",
-]
+)
 
 MEDICAL_CLARIFICATION_QUESTION = (
     "어디가 아프신가요? 주요 증상, 증상이 시작된 시점, 응급 상황인지 알려주세요."
@@ -54,7 +53,7 @@ def normalize(text: str) -> str:
     return text.strip().lower()
 
 
-def contains_any(text: str, keywords: list[str]) -> bool:
+def contains_any(text: str, keywords: list[str] | tuple[str, ...]) -> bool:
     return any(keyword in text for keyword in keywords)
 
 
@@ -66,14 +65,14 @@ def is_transport_question(text: str) -> bool:
     return contains_any(text, TRANSPORT_KEYWORDS)
 
 
-def is_ambiguous_card_question(text: str) -> bool:
+def is_medical_card_question(text: str) -> bool:
     if "카드" not in text:
         return False
 
-    if contains_any(text, ["건강보험", "보험증", "진료"]):
-        return False
-
-    return contains_any(text, CARD_LOSS_KEYWORDS)
+    return (
+        contains_any(text, CARD_LOSS_KEYWORDS)
+        and contains_any(text, MEDICAL_CARD_CONTEXT_KEYWORDS)
+    )
 
 
 def can_handle(user_input: str) -> bool:
@@ -85,7 +84,7 @@ def can_handle(user_input: str) -> bool:
     if is_emergency(text):
         return True
 
-    if is_ambiguous_card_question(text):
+    if is_medical_card_question(text):
         return True
 
     # "병원에 버스로 어떻게 가요?" 같은 질문은 교통 카테고리가 처리하게 둔다.
@@ -103,7 +102,7 @@ def needs_clarification(user_input: str) -> bool:
     if not text:
         return True
 
-    if is_ambiguous_card_question(text):
+    if is_medical_card_question(text):
         return True
 
     if is_emergency(text):
@@ -115,7 +114,7 @@ def needs_clarification(user_input: str) -> bool:
 def get_clarification_question(user_input: str) -> str:
     text = normalize(user_input)
 
-    if is_ambiguous_card_question(text):
+    if is_medical_card_question(text):
         return CARD_CLARIFICATION_QUESTION
 
     return MEDICAL_CLARIFICATION_QUESTION
@@ -139,7 +138,7 @@ def classify_sub_category(user_input: str) -> str:
     return "일반 진료/약국"
 
 
-def build_answer(user_input: str, sub_category: str) -> str:
+def build_answer(sub_category: str) -> str:
     if sub_category == "야간/응급":
         return (
             "## 상황 분류\n"
@@ -219,7 +218,7 @@ def run_category(user_input: str) -> CategoryResult:
         )
 
     sub_category = classify_sub_category(user_input)
-    answer = build_answer(user_input, sub_category)
+    answer = build_answer(sub_category)
 
     return CategoryResult.success(
         answer,

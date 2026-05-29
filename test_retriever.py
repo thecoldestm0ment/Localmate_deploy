@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from textwrap import shorten
 
@@ -18,6 +19,53 @@ TEST_CASES = [
 ]
 
 
+@dataclass(frozen=True)
+class RetrieverCase:
+    category: str
+    query: str
+
+
+def build_cases() -> list[RetrieverCase]:
+    return [RetrieverCase(**case) for case in TEST_CASES]
+
+
+def create_vectorstore() -> Chroma:
+    embeddings = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL)
+    return Chroma(
+        persist_directory=str(DB_DIR),
+        embedding_function=embeddings,
+    )
+
+
+def print_results(case: RetrieverCase, vectorstore: Chroma) -> None:
+    print("=" * 60)
+    print(f"category: {case.category}")
+    print(f"query: {case.query}")
+
+    docs = vectorstore.similarity_search(
+        case.query,
+        k=3,
+        filter={"category": case.category},
+    )
+    if not docs:
+        print("검색 결과가 없습니다.")
+        return
+
+    for index, doc in enumerate(docs, start=1):
+        preview = shorten(
+            doc.page_content.replace("\n", " "),
+            width=220,
+            placeholder="...",
+        )
+        print(f"[결과 {index}]")
+        print(f"source: {doc.metadata.get('source', 'unknown')}")
+        print(f"category: {doc.metadata.get('category', 'unknown')}")
+        print(f"display_category: {doc.metadata.get('display_category', 'unknown')}")
+        print(f"sub_category: {doc.metadata.get('sub_category', 'unknown')}")
+        print(f"content: {preview}")
+        print()
+
+
 def main() -> None:
     load_dotenv()
 
@@ -28,35 +76,10 @@ def main() -> None:
         print("먼저 python build_vector_db.py를 실행해주세요.")
         raise SystemExit(1)
 
-    embeddings = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL)
-    vectorstore = Chroma(
-        persist_directory=str(DB_DIR),
-        embedding_function=embeddings,
-    )
+    vectorstore = create_vectorstore()
 
-    for case in TEST_CASES:
-        print("=" * 60)
-        print(f"category: {case['category']}")
-        print(f"query: {case['query']}")
-
-        docs = vectorstore.similarity_search(
-            case["query"],
-            k=3,
-            filter={"category": case["category"]},
-        )
-        if not docs:
-            print("검색 결과가 없습니다.")
-            continue
-
-        for index, doc in enumerate(docs, start=1):
-            preview = shorten(doc.page_content.replace("\n", " "), width=220, placeholder="...")
-            print(f"[결과 {index}]")
-            print(f"source: {doc.metadata.get('source', 'unknown')}")
-            print(f"category: {doc.metadata.get('category', 'unknown')}")
-            print(f"display_category: {doc.metadata.get('display_category', 'unknown')}")
-            print(f"sub_category: {doc.metadata.get('sub_category', 'unknown')}")
-            print(f"content: {preview}")
-            print()
+    for case in build_cases():
+        print_results(case, vectorstore)
 
 
 if __name__ == "__main__":
