@@ -8,10 +8,13 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 DB_DIR = Path("chroma_db")
 EMBEDDING_MODEL = "models/gemini-embedding-001"
-TEST_QUERIES = [
-    "외국인등록증을 잃어버렸어요. 어떻게 해야 하나요?",
-    "이사했는데 주소 변경 신고를 해야 하나요?",
-    "비자 기간이 곧 끝나요. 뭘 해야 해요?",
+TEST_CASES = [
+    {"category": "admin", "query": "외국인등록증을 잃어버렸어요. 어떻게 해야 하나요?"},
+    {"category": "admin", "query": "이사했는데 주소 변경 신고를 해야 하나요?"},
+    {"category": "admin", "query": "비자 기간이 곧 끝나요. 뭘 해야 해요?"},
+    {"category": "traffic", "query": "교통카드는 어디서 충전해요?"},
+    {"category": "traffic", "query": "버스에서 내릴 때도 카드를 찍어야 해요?"},
+    {"category": "traffic", "query": "중앙역에서 한양대 ERICA 어떻게 가요?"},
 ]
 
 
@@ -31,11 +34,16 @@ def main() -> None:
         embedding_function=embeddings,
     )
 
-    for query in TEST_QUERIES:
+    for case in TEST_CASES:
         print("=" * 60)
-        print(f"query: {query}")
+        print(f"category: {case['category']}")
+        print(f"query: {case['query']}")
 
-        docs = vectorstore.similarity_search(query, k=3, filter={"category": "admin"})
+        docs = vectorstore.similarity_search(
+            case["query"],
+            k=3,
+            filter={"category": case["category"]},
+        )
         if not docs:
             print("검색 결과가 없습니다.")
             continue
@@ -45,6 +53,7 @@ def main() -> None:
             print(f"[결과 {index}]")
             print(f"source: {doc.metadata.get('source', 'unknown')}")
             print(f"category: {doc.metadata.get('category', 'unknown')}")
+            print(f"display_category: {doc.metadata.get('display_category', 'unknown')}")
             print(f"sub_category: {doc.metadata.get('sub_category', 'unknown')}")
             print(f"content: {preview}")
             print()

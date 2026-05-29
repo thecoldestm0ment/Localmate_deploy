@@ -8,11 +8,12 @@ from pydantic import BaseModel, Field
 from categories.shared import get_llm, get_vectorstore
 from categories.types import CategoryResult
 
+CATEGORY_NAME = "admin"
 ADMIN_FILTER = {"category": "admin"}
 NO_DOCS_WARNING = "관련 문서를 충분히 찾지 못했습니다. 공식 안내 확인이 필요합니다."
 GENERATION_ERROR_MESSAGE = "안내를 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도하거나 설정을 확인해주세요."
 CLARIFY_CARD_QUESTION = (
-    "어떤 카드를 잃어버리셨나요? 외국인등록증, 은행 카드, 교통카드 중 어떤 것인지 알려주세요."
+    "어떤 카드를 잃어버리셨나요?\n1. 외국인등록증\n2. 은행 카드\n3. 교통카드/티머니\n4. 학생증"
 )
 ADMIN_KEYWORDS = [
     "외국인등록증",
@@ -31,7 +32,6 @@ ADMIN_KEYWORDS = [
     "등록증",
     "행정",
     "신고",
-    "예약",
 ]
 
 
@@ -94,10 +94,18 @@ def run_category(user_input: str) -> CategoryResult:
     if result["needs_clarification"]:
         return CategoryResult.clarification(
             result["clarifying_question"],
-            category="admin",
+            category=CATEGORY_NAME,
+            sub_category=result["sub_category"],
+            warnings=result["warnings"],
         )
 
-    return CategoryResult.success(result["final_answer"], category="admin")
+    return CategoryResult.success(
+        result["final_answer"],
+        category=CATEGORY_NAME,
+        sub_category=result["sub_category"],
+        sources=result["sources"],
+        warnings=result["warnings"],
+    )
 
 
 def invoke_structured(prompt: str, schema: type[BaseModel]) -> BaseModel:
