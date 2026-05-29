@@ -1,7 +1,7 @@
 from categories import CATEGORY_HANDLERS
 from categories.types import CategoryResult
 
-TOP_LEVEL_CLARIFICATION_QUESTION = "행정 문의인지 의료 문의인지 조금 더 알려주세요."
+TOP_LEVEL_CLARIFICATION_QUESTION = "행정, 의료, 교통 중 어떤 도움이 필요한지 조금 더 알려주세요."
 
 
 def run_localmate_result(user_input: str) -> CategoryResult:
@@ -11,10 +11,20 @@ def run_localmate_result(user_input: str) -> CategoryResult:
 
     matching_handlers = [handler for handler in CATEGORY_HANDLERS if handler.can_handle(cleaned_input)]
 
-    if len(matching_handlers) != 1:
+    if not matching_handlers:
         return CategoryResult.clarification(TOP_LEVEL_CLARIFICATION_QUESTION)
 
-    return matching_handlers[0].run_category(cleaned_input)
+    if len(matching_handlers) == 1:
+        return matching_handlers[0].run_category(cleaned_input)
+
+    traffic_handler = next(
+        (handler for handler in matching_handlers if getattr(handler, "CATEGORY_NAME", "") == "traffic"),
+        None,
+    )
+    if traffic_handler is not None:
+        return traffic_handler.run_category(cleaned_input)
+
+    return CategoryResult.clarification(TOP_LEVEL_CLARIFICATION_QUESTION)
 
 
 def run_localmate(user_input: str) -> str:

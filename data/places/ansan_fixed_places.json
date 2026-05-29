@@ -1,0 +1,22 @@
+{
+  "places": [
+    {
+      "name": "중앙역",
+      "aliases": ["중앙역", "안산 중앙역", "Jungang Station"],
+      "type": "subway_station",
+      "region": "ansan"
+    },
+    {
+      "name": "한대앞역",
+      "aliases": ["한대앞", "한대앞역", "에리카역", "Hanyang University at Ansan Station"],
+      "type": "subway_station",
+      "region": "ansan"
+    },
+    {
+      "name": "한양대 ERICA",
+      "aliases": ["한양대 ERICA", "한양대 에리카", "ERICA", "에리카", "Hanyang University ERICA"],
+      "type": "university",
+      "region": "ansan"
+    }
+  ]
+}
