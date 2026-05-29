@@ -35,6 +35,6 @@
 - 처리 방법이 온라인인지 방문인지도 상황에 따라 달라질 수 있습니다.
 
 ## source metadata
-- source: admin_address_change.md
-- category: 행정
+- source: admin/admin_address_change.md
+- category: admin
 - sub_category: 주소 변경

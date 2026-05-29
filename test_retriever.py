@@ -35,7 +35,7 @@ def main() -> None:
         print("=" * 60)
         print(f"query: {query}")
 
-        docs = vectorstore.similarity_search(query, k=3)
+        docs = vectorstore.similarity_search(query, k=3, filter={"category": "admin"})
         if not docs:
             print("검색 결과가 없습니다.")
             continue
@@ -44,6 +44,7 @@ def main() -> None:
             preview = shorten(doc.page_content.replace("\n", " "), width=220, placeholder="...")
             print(f"[결과 {index}]")
             print(f"source: {doc.metadata.get('source', 'unknown')}")
+            print(f"category: {doc.metadata.get('category', 'unknown')}")
             print(f"sub_category: {doc.metadata.get('sub_category', 'unknown')}")
             print(f"content: {preview}")
             print()

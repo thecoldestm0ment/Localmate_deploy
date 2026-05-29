@@ -35,6 +35,6 @@
 - 수수료, 처리기간, 접수 기관은 시기와 상황에 따라 달라질 수 있으므로 공식 안내를 다시 확인해야 합니다.
 
 ## source metadata
-- source: admin_alien_card_loss.md
-- category: 행정
+- source: admin/admin_alien_card_loss.md
+- category: admin
 - sub_category: 외국인등록증 분실

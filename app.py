@@ -18,7 +18,7 @@ if "user_input" not in st.session_state:
     st.session_state["user_input"] = ""
 
 st.title("🏠 LocalMate")
-st.write("외국인 주민을 위한 행정 생활 적응 AI Agent")
+st.write("외국인 주민을 위한 생활 적응 AI Agent")
 
 st.sidebar.header("예시 질문")
 for index, example in enumerate(EXAMPLE_QUESTIONS, start=1):
@@ -29,7 +29,7 @@ if not DB_DIR.exists():
     st.info("먼저 python build_vector_db.py를 실행해주세요.")
 
 st.text_area(
-    "행정 상황을 입력해주세요.",
+    "상황을 입력해주세요.",
     key="user_input",
     height=160,
     placeholder="예: 외국인등록증을 잃어버렸어요. 어떻게 해야 하나요?",

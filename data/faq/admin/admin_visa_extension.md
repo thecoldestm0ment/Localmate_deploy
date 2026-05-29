@@ -35,6 +35,6 @@
 - 긴급하거나 법적 판단이 필요한 경우에는 담당 기관에 직접 문의해야 합니다.
 
 ## source metadata
-- source: admin_visa_extension.md
-- category: 행정
+- source: admin/admin_visa_extension.md
+- category: admin
 - sub_category: 체류기간 연장/비자

@@ -1,6 +1,7 @@
-# LocalMate 행정 MVP
+# LocalMate 카테고리 분리 구조
 
-외국인 주민이 행정 상황을 입력하면 관련 FAQ를 검색하고, 단계별 행동 안내와 준비물 체크리스트, 기관에서 사용할 한국어 표현까지 정리해 주는 RAG 기반 LangGraph 예제입니다.
+외국인 주민이 질문을 입력하면 카테고리를 먼저 나누고, 각 카테고리 모듈이 독립적으로 답변을 생성하는 구조입니다.  
+현재는 `localmate_graph.py`가 얇은 라우터 역할만 하고, 행정 로직은 `categories/admin.py`, 의료 로직은 `categories/medical.py`에서 관리합니다.
 
 ## 환경 설정
 
@@ -30,10 +31,17 @@ langchain-practice/
 ├─ .gitignore
 ├─ data/
 │  └─ faq/
-│     ├─ admin_alien_card_loss.md
-│     ├─ admin_address_change.md
-│     └─ admin_visa_extension.md
+│     ├─ admin/
+│     │  ├─ admin_alien_card_loss.md
+│     │  ├─ admin_address_change.md
+│     │  └─ admin_visa_extension.md
+│     └─ medical/
 ├─ chroma_db/
+├─ categories/
+│  ├─ __init__.py
+│  ├─ shared.py
+│  ├─ admin.py
+│  └─ medical.py
 ├─ build_vector_db.py
 ├─ test_retriever.py
 ├─ localmate_graph.py
@@ -41,9 +49,21 @@ langchain-practice/
 └─ README.md
 ```
 
+## 카테고리 분리 원칙
+
+- `localmate_graph.py`는 `run_localmate(user_input: str) -> str` 진입점만 제공합니다.
+- `categories/admin.py`와 `categories/medical.py`는 각각 `can_handle()`와 `run_category()` 인터페이스를 구현합니다.
+- 공용 설정은 `categories/shared.py`에만 둡니다.
+- 카테고리별 프롬프트, 그래프, 포맷팅은 각 파일 안에서 독립적으로 관리합니다.
+
 ## Vector DB 생성 방법
 
-`build_vector_db.py`는 `data/faq/*.md` 문서를 읽어 Chroma DB를 다시 만듭니다.
+`build_vector_db.py`는 `data/faq/**/*.md` 문서를 재귀적으로 읽고, 문서 위치를 바탕으로 `category`, `source`, `sub_category` metadata를 저장합니다.
+
+- `source`: `admin/admin_address_change.md` 같은 상대 경로
+- `category`: `admin`, `medical` 같은 machine value
+- `sub_category`: 문서의 `source metadata` 섹션 또는 파일명 기반 값
+
 embedding 모델은 반드시 `models/gemini-embedding-001`을 사용합니다.
 
 ```powershell
@@ -54,17 +74,13 @@ python build_vector_db.py
 
 ## Retriever 테스트 방법
 
-아래 명령으로 고정 query 3개에 대한 검색 결과를 확인할 수 있습니다.
-
 ```powershell
 python test_retriever.py
 ```
 
-각 query마다 top 3 결과의 `source`, `sub_category`, 문서 일부를 출력합니다.
+현재 테스트 스크립트는 행정 query 3개를 `category=admin` 필터로 검색하고, `source`, `category`, `sub_category`, 문서 일부를 출력합니다.
 
 ## LangGraph 실행 방법
-
-직접 콘솔에서 테스트하려면 아래 명령을 실행하세요.
 
 ```powershell
 python localmate_graph.py
@@ -78,7 +94,7 @@ python localmate_graph.py
 streamlit run app.py
 ```
 
-앱에서 예시 질문 버튼을 눌러 입력을 채우고 `안내 받기`를 누르면 답변을 Markdown으로 확인할 수 있습니다.
+앱은 계속 `run_localmate()`만 호출하므로, 카테고리별 구현이 분리되어도 UI 코드는 크게 바뀌지 않습니다.
 
 ## Embedding 모델 주의사항
 
@@ -93,6 +109,7 @@ streamlit run app.py
 - embedding 모델이 바뀐 경우
 - FAQ 문서 내용이 바뀐 경우
 - metadata 구조가 바뀐 경우
+- FAQ 폴더 구조가 바뀐 경우
 
 `build_vector_db.py`는 실행 시 기존 `chroma_db`를 삭제하고 새로 생성합니다.
 
@@ -107,6 +124,11 @@ python test_retriever.py
 python localmate_graph.py
 streamlit run app.py
 ```
+
+## 현재 상태
+
+- 행정 카테고리는 `categories/admin.py`에서 동작합니다.
+- 의료 카테고리는 `categories/medical.py` 인터페이스와 라우팅만 준비되어 있고, 실제 세부 로직은 팀원이 이어서 구현할 수 있도록 분리되어 있습니다.
 
 ## 오류 안내
 
