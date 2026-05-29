@@ -51,8 +51,10 @@ langchain-practice/
 
 ## 카테고리 분리 원칙
 
-- `localmate_graph.py`는 `run_localmate(user_input: str) -> str` 진입점만 제공합니다.
+- `localmate_graph.py`는 `run_localmate(user_input: str) -> str` 진입점을 제공합니다.
+- `categories/__init__.py`가 `CATEGORY_HANDLERS` registry를 관리합니다.
 - `categories/admin.py`와 `categories/medical.py`는 각각 `can_handle()`와 `run_category()` 인터페이스를 구현합니다.
+- 내부적으로 `run_category()`는 문자열 대신 `CategoryResult`를 반환하고, 라우터가 최종 사용자 응답 문자열을 꺼내 씁니다.
 - 공용 설정은 `categories/shared.py`에만 둡니다.
 - 카테고리별 프롬프트, 그래프, 포맷팅은 각 파일 안에서 독립적으로 관리합니다.
 

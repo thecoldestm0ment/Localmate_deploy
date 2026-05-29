@@ -1,19 +1,24 @@
-from categories import admin, medical
+from categories import CATEGORY_HANDLERS
+from categories.types import CategoryResult
 
-FALLBACK_QUESTION = "행정 문의인지 의료 문의인지 조금 더 알려주세요."
-CATEGORY_HANDLERS = [admin, medical]
+TOP_LEVEL_CLARIFICATION_QUESTION = "행정 문의인지 의료 문의인지 조금 더 알려주세요."
 
 
-def run_localmate(user_input: str) -> str:
+def run_localmate_result(user_input: str) -> CategoryResult:
     cleaned_input = user_input.strip()
     if not cleaned_input:
         raise RuntimeError("질문을 입력해주세요.")
 
-    for handler in CATEGORY_HANDLERS:
-        if handler.can_handle(cleaned_input):
-            return handler.run_category(cleaned_input)
+    matching_handlers = [handler for handler in CATEGORY_HANDLERS if handler.can_handle(cleaned_input)]
 
-    return FALLBACK_QUESTION
+    if len(matching_handlers) != 1:
+        return CategoryResult.clarification(TOP_LEVEL_CLARIFICATION_QUESTION)
+
+    return matching_handlers[0].run_category(cleaned_input)
+
+
+def run_localmate(user_input: str) -> str:
+    return run_localmate_result(user_input).answer
 
 
 def main() -> None:
