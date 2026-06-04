@@ -2,7 +2,6 @@ from langchain_core.documents import Document
 
 from categories.response_format import (
     format_bullets,
-    format_checkboxes,
     format_numbered,
     format_sources,
 )
@@ -196,6 +195,11 @@ def merge_medical_warnings(extra_warnings: list[str]) -> list[str]:
     return warnings
 
 
+def format_medical_checklist(items: list[str]) -> str:
+    normalized_items = [str(item).strip() for item in items if str(item).strip()]
+    return "\n".join(f"□ {item}" for item in normalized_items)
+
+
 def build_final_answer(
     sub_category: str,
     action_plan: dict[str, list[str]],
@@ -222,7 +226,7 @@ def build_final_answer(
             format_bullets(action_plan.get("after_checks", [])),
             "",
             "## 준비물 체크리스트",
-            format_checkboxes(checklist),
+            format_medical_checklist(checklist),
             "",
             "## 기관에서 사용할 한국어",
             f'- 기관에서 말할 문장:\n  "{korean_expressions.get("office", "")}"',
