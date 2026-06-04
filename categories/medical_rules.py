@@ -42,10 +42,7 @@ EMERGENCY_KEYWORDS = (
 MEDICAL_ADMIN_KEYWORDS = ("건강보험", "건강 보험", "의료비", "본인부담금", "보건소", "고지서", "보험료", "체납", "환급")
 PHARMACY_KEYWORDS = ("약국", "처방전", "처방", "감기약")
 DENTAL_KEYWORDS = ("치과", "치통", "이빨", "치아")
-VAGUE_MEDICAL_INPUTS = (
-    "아파요", "아파", "몸이 안 좋아요",
-    "몸이 안좋아요", "병원 가야 하나요", "병원 가고 싶어요",
-)
+VAGUE_MEDICAL_INPUTS = ("아파요", "아파", "몸이 안 좋아요", "몸이 안좋아요", "병원 가야 하나요", "병원 가고 싶어요")
 
 
 def normalize_text(text: str) -> str:
