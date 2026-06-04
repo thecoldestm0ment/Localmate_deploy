@@ -306,7 +306,7 @@ def format_numbered(items: list[str]) -> str:
 def format_checkboxes(items: list[str]) -> str:
     if not items:
         return "□ 지도 앱 확인"
-    return "\n".join(f"□ {item}" for item in items)
+    return "  \n".join(f"□ {item}" for item in items)
 
 
 def format_bullets(items: list[str]) -> str:
