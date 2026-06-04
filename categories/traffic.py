@@ -192,12 +192,14 @@ def prepare_response_node(state: TrafficState) -> TrafficState:
             sub_category=state["sub_category"],
             origin=state["origin"],
             destination=state["destination"],
+            user_input=state["user_input"],
         ),
         "checklist": build_checklist(state["sub_category"]),
         "expressions": build_expressions(
             sub_category=state["sub_category"],
             origin=state["origin"],
             destination=state["destination"],
+            user_input=state["user_input"],
         ),
         "warnings": build_warnings(state["warnings"]),
     }
@@ -221,6 +223,7 @@ def final_node(state: TrafficState) -> TrafficState:
             sources=state["sources"],
             origin=state["origin"],
             destination=state["destination"],
+            user_input=state["user_input"],
         ),
     }
 
