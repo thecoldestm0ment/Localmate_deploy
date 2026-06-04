@@ -53,7 +53,15 @@ CARD_PAYMENT_KEYWORDS = ("충전", "잔액", "결제", "사용법")
 BUS_KEYWORDS = ("버스", "bus", "환승", "하차", "정류장")
 SUBWAY_KEYWORDS = ("지하철", "전철", "subway", "metro")
 TAXI_KEYWORDS = ("택시", "taxi", "카카오택시")
-LATE_NIGHT_KEYWORDS = ("막차", "첫차", "야간", "밤늦", "심야", "late night")
+LATE_NIGHT_KEYWORDS = (
+    "막차",
+    "첫차",
+    "심야버스",
+    "야간버스",
+    "늦은 시간 버스",
+    "늦은 시간 택시",
+    "late night bus",
+)
 REALTIME_KEYWORDS = (
     "실시간",
     "몇 분 뒤",
