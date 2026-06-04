@@ -1,0 +1,1 @@
+"""LocalMate test package."""
