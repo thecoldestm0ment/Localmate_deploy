@@ -41,14 +41,7 @@ PRIMARY_SOURCE_BY_SUBCATEGORY = {
     SUB_LATE_NIGHT: "traffic/late_night_transport.md",
 }
 
-TRANSPORT_CARD_KEYWORDS = (
-    "교통카드",
-    "버스카드",
-    "티머니",
-    "캐시비",
-    "t-money",
-    "transportation card",
-)
+TRANSPORT_CARD_KEYWORDS = ("교통카드", "버스카드", "티머니", "캐시비", "t-money", "transportation card")
 CARD_PAYMENT_KEYWORDS = ("충전", "잔액", "결제", "사용법")
 BUS_KEYWORDS = ("버스", "bus", "환승", "하차", "정류장")
 SUBWAY_KEYWORDS = ("지하철", "전철", "subway", "metro")
@@ -87,22 +80,10 @@ ROUTE_INTENT_KEYWORDS = (
     "how to get",
     "go to",
 )
-VAGUE_BUS_QUESTIONS = (
-    "버스 타도 돼요?",
-    "지하철 타도 돼요?",
-    "전철 타도 돼요?",
-)
+VAGUE_BUS_QUESTIONS = ("버스 타도 돼요?", "지하철 타도 돼요?", "전철 타도 돼요?")
 GENERIC_CARD_KEYWORDS = ("카드", "등록증", "신분증", "card")
 CARD_LOSS_KEYWORDS = ("잃어버", "분실", "없어졌", "사라졌", "lost")
-GENERAL_DESTINATION_HINTS = (
-    "병원",
-    "출입국사무소",
-    "출입국",
-    "은행",
-    "학교",
-    "한양대 erica",
-    "에리카",
-)
+GENERAL_DESTINATION_HINTS = ("병원", "출입국사무소", "출입국", "은행", "학교", "한양대 erica", "에리카")
 TRANSIT_PAYMENT_CONTEXT = ("교통", "버스", "지하철", "티머니", "캐시비")
 TRANSIT_ROUTE_KEYWORDS = BUS_KEYWORDS + SUBWAY_KEYWORDS
 TRAFFIC_MODE_KEYWORDS = (

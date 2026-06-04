@@ -73,13 +73,7 @@ FALLBACK_BUNDLES: dict[str, dict[str, object]] = {
                 "기관에서 추가로 요청할 수 있는 서류가 있는지 확인하세요.  \n   (Check whether the office may ask for additional documents.)",
             ],
         },
-        "checklist": [
-            "여권 (Passport)",
-            "증명사진 (ID photo)",
-            "외국인등록번호 또는 체류 관련 정보 (Alien registration number or stay-related information)",
-            "분실 경위 메모 (Memo about when and where you lost it)",
-            "방문 예약 확인 내역 (Visit reservation confirmation)",
-        ],
+        "checklist": ["여권 (Passport)", "증명사진 (ID photo)", "외국인등록번호 또는 체류 관련 정보 (Alien registration number or stay-related information)", "분실 경위 메모 (Memo about when and where you lost it)", "방문 예약 확인 내역 (Visit reservation confirmation)"],
         "korean_expressions": {
             "office": "외국인등록증을 잃어버렸어요. 재발급 절차를 안내해 주세요.  \n  (I lost my Alien Registration Card. Please tell me the reissue process.)",
             "phone": "방문 예약이 필요한가요?  \n  (Do I need to make a visit reservation?)",
@@ -106,13 +100,7 @@ FALLBACK_BUNDLES: dict[str, dict[str, object]] = {
                 "기관에서 추가로 요청할 수 있는 서류가 있는지 확인하세요.  \n   (Check whether the office may ask for additional documents.)",
             ],
         },
-        "checklist": [
-            "여권 (Passport)",
-            "외국인등록증 또는 체류 관련 신분 확인 자료 (Alien Registration Card or stay-related ID information)",
-            "새 주소 확인 서류 (Proof of new address)",
-            "거주 확인 자료 (Residence confirmation document)",
-            "방문 예약 확인 내역 (Visit reservation confirmation)",
-        ],
+        "checklist": ["여권 (Passport)", "외국인등록증 또는 체류 관련 신분 확인 자료 (Alien Registration Card or stay-related ID information)", "새 주소 확인 서류 (Proof of new address)", "거주 확인 자료 (Residence confirmation document)", "방문 예약 확인 내역 (Visit reservation confirmation)"],
         "korean_expressions": {
             "office": "이사해서 주소 변경 신고가 필요한지 확인하고 싶어요.  \n  (I moved and would like to check whether I need to report my address change.)",
             "phone": "주소 변경 신고 방법과 필요한 서류를 알려 주세요.  \n  (Please tell me how to report an address change and what documents are required.)",
@@ -139,14 +127,7 @@ FALLBACK_BUNDLES: dict[str, dict[str, object]] = {
                 "처리 일정은 공식 안내에서 다시 확인하세요.  \n   (Confirm processing timelines through official guidance.)",
             ],
         },
-        "checklist": [
-            "여권 (Passport)",
-            "외국인등록증 또는 체류 관련 정보 (Alien Registration Card or stay-related information)",
-            "현재 비자/체류자격 정보 (Current visa/status of stay information)",
-            "체류기간 만료일 확인 자료 (Document showing your stay period expiration date)",
-            "기관에서 추가로 요청할 수 있는 서류 (Documents the office may additionally request)",
-            "방문 예약 확인 내역 (Visit reservation confirmation)",
-        ],
+        "checklist": ["여권 (Passport)", "외국인등록증 또는 체류 관련 정보 (Alien Registration Card or stay-related information)", "현재 비자/체류자격 정보 (Current visa/status of stay information)", "체류기간 만료일 확인 자료 (Document showing your stay period expiration date)", "기관에서 추가로 요청할 수 있는 서류 (Documents the office may additionally request)", "방문 예약 확인 내역 (Visit reservation confirmation)"],
         "korean_expressions": {
             "office": "비자 기간이 곧 끝나서 체류기간 연장 방법을 확인하고 싶어요.  \n  (My visa period is ending soon, and I would like to check how to extend my stay.)",
             "phone": "제 체류자격에 필요한 서류가 무엇인지 알고 싶어요.  \n  (I would like to know what documents are required for my status of stay.)",
@@ -170,12 +151,7 @@ FALLBACK_BUNDLES: dict[str, dict[str, object]] = {
                 "예약 내용과 방문 시간을 다시 확인하세요.  \n   (Confirm your appointment details and visit time.)",
             ],
         },
-        "checklist": [
-            "여권 (Passport)",
-            "방문 목적 관련 안내 내용 (Information related to your visit purpose)",
-            "예약 확인 내역 (Appointment confirmation)",
-            "본인 확인 자료 (Identity document)",
-        ],
+        "checklist": ["여권 (Passport)", "방문 목적 관련 안내 내용 (Information related to your visit purpose)", "예약 확인 내역 (Appointment confirmation)", "본인 확인 자료 (Identity document)"],
         "korean_expressions": {
             "office": "이 업무는 방문 예약이 필요한가요?  \n  (Does this task require a visit reservation?)",
             "phone": "방문 예약 방법과 준비물을 알려 주세요.  \n  (Please tell me how to make a visit reservation and what to prepare.)",
@@ -198,11 +174,7 @@ FALLBACK_BUNDLES: dict[str, dict[str, object]] = {
                 "처리 후 추가 확인이 필요한지 다시 살펴보세요.  \n   (After processing, check whether any follow-up is needed.)",
             ],
         },
-        "checklist": [
-            "여권 (Passport)",
-            "본인 확인 자료 (Identity document)",
-            "방문 또는 신청 관련 안내 내용 (Information about the visit or application)",
-        ],
+        "checklist": ["여권 (Passport)", "본인 확인 자료 (Identity document)", "방문 또는 신청 관련 안내 내용 (Information about the visit or application)"],
         "korean_expressions": {
             "office": "이 업무는 어떤 절차로 진행하면 되나요?  \n  (What procedure should I follow for this task?)",
             "phone": "필요한 준비물과 방문 여부를 알려 주세요.  \n  (Please tell me what to prepare and whether I need to visit.)",

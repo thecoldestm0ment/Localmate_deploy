@@ -51,37 +51,12 @@ ADMIN_KEYWORDS = (
 )
 
 LOSS_KEYWORDS = ("잃어버", "분실", "없어졌", "사라졌", "lost")
-ALIEN_CARD_KEYWORDS = (
-    "외국인등록증",
-    "외국인 등록증",
-    "alien registration card",
-    "arc",
-)
+ALIEN_CARD_KEYWORDS = ("외국인등록증", "외국인 등록증", "alien registration card", "arc")
 GENERIC_CARD_KEYWORDS = ("카드", "등록증", "신분증", "card")
 CARD_LOSS_EXCLUDE_KEYWORDS = ("은행", "교통", "선불", "체크", "신용")
 ADDRESS_KEYWORDS = ("주소 변경", "주소변경", "주소", "이사", "전입", "address")
-VISA_KEYWORDS = (
-    "비자",
-    "visa",
-    "체류기간",
-    "체류 기간",
-    "체류자격",
-    "체류 자격",
-    "연장",
-    "만료",
-    "체류",
-)
-EXPIRED_VISA_KEYWORDS = (
-    "이미",
-    "벌써",
-    "지났",
-    "지났어요",
-    "끝났",
-    "만료됐",
-    "만료되었",
-    "expired",
-    "overstayed",
-)
+VISA_KEYWORDS = ("비자", "visa", "체류기간", "체류 기간", "체류자격", "체류 자격", "연장", "만료", "체류")
+EXPIRED_VISA_KEYWORDS = ("이미", "벌써", "지났", "지났어요", "끝났", "만료됐", "만료되었", "expired", "overstayed")
 VISIT_KEYWORDS = ("예약", "방문", "appointment", "visit")
 
 
