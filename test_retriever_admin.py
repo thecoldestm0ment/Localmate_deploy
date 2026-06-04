@@ -18,7 +18,7 @@ TEST_CASES = [
     RetrieverCase(
         name="admin_visa_extension",
         category="admin",
-        query="비자 기간이 곧 끝나요. 뭘 해야 해요?",
+        query="비자 기간이 곧 끝나요. 뭘 해야 하나요?",
         expected_source="admin/admin_visa_extension.md",
         expected_sub_category="체류기간 연장/비자",
     ),

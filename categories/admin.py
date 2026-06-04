@@ -51,6 +51,7 @@ class AdminState(TypedDict):
     user_input: str
     category: str
     sub_category: str
+    is_expired_visa: bool
     needs_clarification: bool
     clarifying_question: str
     retrieved_docs: list[Document]
@@ -111,6 +112,7 @@ def build_initial_state(user_input: str) -> AdminState:
         "user_input": user_input,
         "category": DISPLAY_CATEGORY,
         "sub_category": "",
+        "is_expired_visa": False,
         "needs_clarification": False,
         "clarifying_question": "",
         "retrieved_docs": [],
@@ -254,6 +256,7 @@ def final_node(state: AdminState) -> AdminState:
         **state,
         "final_answer": build_final_answer(
             sub_category=state["sub_category"],
+            is_expired_visa=state["is_expired_visa"],
             action_plan=state["action_plan"],
             checklist=state["checklist"],
             korean_expressions=state["korean_expressions"],
