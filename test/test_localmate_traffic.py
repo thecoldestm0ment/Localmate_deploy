@@ -76,6 +76,39 @@ TEST_CASES = [
         ),
     ),
     LocalMateCase(
+        name="traffic_last_bus",
+        query="막차 언제예요?",
+        category="traffic",
+        sub_category="막차/야간 이동",
+        needs_clarification=False,
+        contains=(
+            "교통 / 막차/야간 이동",
+            "traffic/late_night_transport.md",
+        ),
+    ),
+    LocalMateCase(
+        name="traffic_late_night_bus",
+        query="심야버스 있나요?",
+        category="traffic",
+        sub_category="막차/야간 이동",
+        needs_clarification=False,
+        contains=(
+            "교통 / 막차/야간 이동",
+            "traffic/late_night_transport.md",
+        ),
+    ),
+    LocalMateCase(
+        name="traffic_late_time_bus_context",
+        query="밤늦게 버스 탈 수 있나요?",
+        category="traffic",
+        sub_category="버스 이용/환승",
+        needs_clarification=False,
+        contains=(
+            "교통 / 버스 이용/환승",
+            "traffic/bus_transfer.md",
+        ),
+    ),
+    LocalMateCase(
         name="traffic_over_medical",
         query="병원에 버스로 어떻게 가요?",
         category="traffic",

@@ -7,7 +7,18 @@ TEST_CASES = [
         category="medical",
         sub_category="일반 진료/약국",
         needs_clarification=False,
-        contains=("의료 / 일반 진료/약국", "약국은 어디에 있나요?"),
+        contains=("의료 / 일반 진료/약국", "medical/medical_general.md"),
+    ),
+    LocalMateCase(
+        name="medical_late_night_emergency",
+        query="밤늦게 갑자기 아프면 응급실 가야 하나요?",
+        category="medical",
+        sub_category="야간/응급",
+        needs_clarification=False,
+        contains=(
+            "의료 / 야간/응급",
+            "medical/medical_emergency.md",
+        ),
     ),
 ]
 
