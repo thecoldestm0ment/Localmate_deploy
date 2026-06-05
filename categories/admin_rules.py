@@ -11,27 +11,31 @@ SUB_MISC = "기타 행정"
 SUB_AMBIGUOUS = "애매함"
 
 NO_DOCS_WARNING = (
-    "관련 문서를 충분히 찾지 못했습니다. 공식 안내 확인이 필요합니다."
+    "관련 문서를 충분히 찾지 못했습니다. 방문 전 공식 안내를 확인해 주세요."
 )
 GENERATION_ERROR_MESSAGE = (
-    "안내를 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도하거나 설정을 확인해주세요."
+    "안내를 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도하거나 설정을 확인해 주세요."
 )
 
 CLARIFY_CARD_QUESTION = """어떤 카드를 잃어버리셨나요?
 1. 외국인등록증
 2. 은행 카드
-3. 교통카드/티머니
+3. 교통카드/선불카드
 4. 학생증"""
 
 ADMIN_KEYWORDS = (
     "외국인등록증",
     "외국인 등록증",
+    "alien registration card",
+    "arc",
     "비자",
+    "visa",
     "체류",
     "체류기간",
     "체류 자격",
     "체류자격",
     "출입국",
+    "immigration",
     "주소",
     "주소 변경",
     "주소변경",
@@ -40,20 +44,25 @@ ADMIN_KEYWORDS = (
     "등록증",
     "행정",
     "신고",
+    "예약",
+    "방문",
+    "서류",
+    "준비물",
 )
 
-LOSS_KEYWORDS = ("잃어버", "분실", "없어졌", "사라졌")
+LOSS_KEYWORDS = ("잃어버", "분실", "없어졌", "사라졌", "lost")
 ALIEN_CARD_KEYWORDS = (
     "외국인등록증",
     "외국인 등록증",
     "alien registration card",
     "arc",
 )
-GENERIC_CARD_KEYWORDS = ("카드", "등록증", "신분증")
-CARD_LOSS_EXCLUDE_KEYWORDS = ("은행", "교통", "티머니")
-ADDRESS_KEYWORDS = ("주소 변경", "주소변경", "주소", "이사", "전입")
+GENERIC_CARD_KEYWORDS = ("카드", "등록증", "신분증", "card")
+CARD_LOSS_EXCLUDE_KEYWORDS = ("은행", "교통", "선불", "체크", "신용")
+ADDRESS_KEYWORDS = ("주소 변경", "주소변경", "주소", "이사", "전입", "address")
 VISA_KEYWORDS = (
     "비자",
+    "visa",
     "체류기간",
     "체류 기간",
     "체류자격",
@@ -62,7 +71,18 @@ VISA_KEYWORDS = (
     "만료",
     "체류",
 )
-VISIT_KEYWORDS = ("예약", "방문")
+EXPIRED_VISA_KEYWORDS = (
+    "이미",
+    "벌써",
+    "지났",
+    "지났어요",
+    "끝났",
+    "만료됐",
+    "만료되었",
+    "expired",
+    "overstayed",
+)
+VISIT_KEYWORDS = ("예약", "방문", "appointment", "visit")
 
 
 def normalize_text(text: str) -> str:
@@ -81,6 +101,13 @@ def is_ambiguous_card_loss(text: str) -> bool:
             text,
             ALIEN_CARD_KEYWORDS + CARD_LOSS_EXCLUDE_KEYWORDS,
         )
+    )
+
+
+def is_expired_visa_question(text: str) -> bool:
+    return has_any_keyword(text, VISA_KEYWORDS) and has_any_keyword(
+        text,
+        EXPIRED_VISA_KEYWORDS,
     )
 
 
@@ -117,4 +144,5 @@ def classify_admin_input(user_input: str) -> dict[str, str | bool]:
         "sub_category": sub_category,
         "needs_clarification": needs_clarification,
         "clarifying_question": clarifying_question,
+        "is_expired_visa": is_expired_visa_question(text),
     }
