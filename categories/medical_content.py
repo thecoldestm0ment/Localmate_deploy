@@ -193,7 +193,6 @@ def get_fallback_bundle(sub_category: str) -> dict[str, object]:
 def get_primary_source(sub_category: str) -> str | None:
     return PRIMARY_SOURCE_BY_SUBCATEGORY.get(sub_category)
 
-
 def format_context(docs: list[Document]) -> str:
     if not docs:
         return (
