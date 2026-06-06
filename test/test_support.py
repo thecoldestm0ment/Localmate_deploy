@@ -25,6 +25,7 @@ from langchain_chroma import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 os.chdir(PROJECT_ROOT)
+os.environ.setdefault("LOCALMATE_ROUTER", "rule")
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))

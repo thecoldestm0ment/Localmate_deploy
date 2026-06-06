@@ -1,12 +1,36 @@
+import logging
+import os
 from typing import Literal
+
 from pydantic import BaseModel, Field
 from categories import CATEGORY_REGISTRY, CategoryHandlerSpec, admin, medical, traffic
 from categories.shared import get_llm
 from categories.types import CategoryResult
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_QUESTION = "외국인등록증을 잃어버렸어요. 어떻게 해야 하나요?"
 TOP_LEVEL_CLARIFICATION_QUESTION = (
     "행정, 의료, 교통 중 어떤 도움이 필요한지 조금 더 알려주세요."
+)
+ROUTER_MODE_ENV = "LOCALMATE_ROUTER"
+RULE_ROUTER_MODE = "rule"
+URGENT_MEDICAL_KEYWORDS = (
+    "응급",
+    "응급실",
+    "119",
+    "숨쉬기",
+    "숨 쉬기",
+    "호흡",
+    "기절",
+    "쓰러",
+    "피가 많이",
+    "가슴 통증",
+    "심한 화상",
+    "부러",
+    "갑자기 심하게",
+    "emergency",
+    "emergency room",
 )
 
 
@@ -68,8 +92,38 @@ ROUTER_PROMPT_TEMPLATE = """당신은 한국 거주 외국인 지원 서비스(L
 CATEGORY_MODULE_MAP = {
     "행정": admin,
     "의료": medical,
-    "교통": traffic
+    "교통": traffic,
 }
+
+
+def normalize_text(text: str) -> str:
+    return text.strip().lower()
+
+
+def get_handler_for_module(module: object) -> CategoryHandlerSpec | None:
+    for spec in CATEGORY_REGISTRY:
+        if spec.module == module:
+            return spec
+    return None
+
+
+def route_urgent_medical(user_input: str) -> CategoryHandlerSpec | None:
+    text = normalize_text(user_input)
+    if any(keyword in text for keyword in URGENT_MEDICAL_KEYWORDS):
+        return get_handler_for_module(medical)
+    return None
+
+
+def route_with_rules(user_input: str) -> CategoryHandlerSpec | None:
+    matching_handlers = [
+        spec
+        for spec in CATEGORY_REGISTRY
+        if spec.module.can_handle(user_input)
+    ]
+    if not matching_handlers:
+        return None
+    return max(matching_handlers, key=lambda spec: spec.priority)
+
 
 def route_with_llm_intent(user_input: str) -> CategoryHandlerSpec | None:
     """Gemini LLM을 활용해 사용자 의도를 분류하고, 일치하는 핸들러 스펙을 반환합니다."""
@@ -80,14 +134,18 @@ def route_with_llm_intent(user_input: str) -> CategoryHandlerSpec | None:
         response = structured_llm.invoke(prompt)
         category = response.category
         reason = response.reason
-        
-        print(f"\n[AI Intent Router LOG]")
-        print(f" - 입력 질문: {user_input}")
-        print(f" - 추론 분류: {category}")
-        print(f" - 판단 근거: {reason}\n")
-        
-    except Exception as e:
-        print(f"[Router Error] LLM 라우팅 실패로 인한 역질문 유도: {e}")
+
+        logger.debug(
+            "AI intent router classified query",
+            extra={
+                "user_input": user_input,
+                "category": category,
+                "reason": reason,
+            },
+        )
+
+    except Exception:
+        logger.debug("LLM intent router failed", exc_info=True)
         return None
 
     # LLM 문자열 결과에 대응하는 모듈 객체 획득
@@ -95,11 +153,22 @@ def route_with_llm_intent(user_input: str) -> CategoryHandlerSpec | None:
     if target_module is None:
         return None
 
-    for spec in CATEGORY_REGISTRY:
-        if spec.module == target_module:
-            return spec
-            
-    return None
+    return get_handler_for_module(target_module)
+
+
+def route_user_input(user_input: str) -> CategoryHandlerSpec | None:
+    urgent_handler = route_urgent_medical(user_input)
+    if urgent_handler is not None:
+        return urgent_handler
+
+    if os.getenv(ROUTER_MODE_ENV, "").lower() == RULE_ROUTER_MODE:
+        return route_with_rules(user_input)
+
+    selected_handler = route_with_llm_intent(user_input)
+    if selected_handler is not None:
+        return selected_handler
+
+    return route_with_rules(user_input)
 
 
 def run_localmate_result(user_input: str) -> CategoryResult:
@@ -107,7 +176,7 @@ def run_localmate_result(user_input: str) -> CategoryResult:
     if not cleaned_input:
         raise RuntimeError("질문을 입력해주세요.")
 
-    selected_handler = route_with_llm_intent(cleaned_input)
+    selected_handler = route_user_input(cleaned_input)
     
     if selected_handler is None:
         return CategoryResult.clarification(TOP_LEVEL_CLARIFICATION_QUESTION)

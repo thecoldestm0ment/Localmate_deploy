@@ -22,6 +22,14 @@ def build_action_steps(
     user_input: str = "",
 ) -> list[str]:
     details = build_question_details(user_input, destination)
+    destination_with_particle = f"{destination}{choose_ro_particle(destination)}"
+    fixed_place_steps = [
+        f"지도 앱에 출발지는 {origin}, 목적지는 {destination_with_particle} 입력합니다.  \n(Enter {origin} as the starting point and {destination} as the destination in a map app.)",
+        "추천 경로에서 버스/지하철/도보 중 지금 이용하기 쉬운 방법을 선택합니다.  \n(Choose the easiest option now among bus, subway, and walking routes.)",
+        "버스나 지하철을 탈 때는 번호만 보지 말고 방향과 내릴 정류장/역을 함께 확인합니다.  \n(When taking a bus or subway, check the direction and the stop or station where you should get off, not only the route number.)",
+        "정류장 안내기나 역 안내판에서 방향과 도착 시간을 한 번 더 확인합니다.  \n(Check the direction and arrival time once more on the bus stop display or station sign.)",
+    ]
+    fixed_place_steps.extend(build_supported_route_tips(origin, destination))
 
     action_steps_map = {
         SUB_TRANSPORT_CARD: [
@@ -41,12 +49,7 @@ def build_action_steps(
             "도착지가 가까워지면 내릴 위치를 미리 말합니다.  \n(When you get close to the destination, tell the driver where you want to get off.)",
             "필요하면 영수증을 요청합니다.  \n(Ask for a receipt if you need one.)",
         ],
-        SUB_FIXED_PLACE: [
-            f"지도 앱에 출발지 {origin}, 목적지 {destination}를 입력합니다.  \n(Enter {origin} as the starting point and {destination} as the destination in a map app.)",
-            "버스 번호만 보고 타지 말고 방향과 내릴 정류장을 함께 확인합니다.  \n(Do not board only by bus number; check the direction and the stop where you should get off.)",
-            "정류장 안내기나 역 안내판에서 방향을 한 번 더 확인합니다.  \n(Check the direction once more on the bus stop display or station sign.)",
-            "한양대 ERICA처럼 목적지와 정류장 이름이 다를 수 있으니 가까운 정류장도 확인합니다.  \n(The stop name may be different from the destination, such as Hanyang University ERICA, so check nearby stop names too.)",
-        ],
+        SUB_FIXED_PLACE: fixed_place_steps,
         SUB_LATE_NIGHT: [
             "지도 앱에서 막차 또는 심야버스 시간을 먼저 확인합니다.  \n(Check the last bus or late-night bus time in a map app first.)",
             "정류장 안내기에서 방향과 도착 시간을 다시 확인합니다.  \n(Check the direction and arrival time again on the bus stop display.)",
@@ -64,7 +67,7 @@ def build_checklist(sub_category: str) -> list[str]:
         SUB_TRANSPORT_CARD: ["교통카드", "충전할 금액", "카드 잔액", "결제 수단"],
         SUB_BUS: ["버스 번호", "버스 방향", "내릴 정류장 이름", "교통카드 잔액", "지도 앱의 도착 시간"],
         SUB_TAXI: ["목적지 이름", "기사님에게 보여줄 주소", "카드 결제 가능 여부", "내릴 위치", "영수증 필요 여부"],
-        SUB_FIXED_PLACE: ["출발지", "목적지", "버스 방향", "내릴 정류장 이름", "교통카드 잔액"],
+        SUB_FIXED_PLACE: ["출발지", "목적지", "추천 경로", "방향", "내릴 정류장/역 이름", "교통카드 잔액"],
         SUB_LATE_NIGHT: ["현재 위치", "목적지", "막차 시간", "버스 방향", "대체 이동 방법"],
     }
     return checklist_map.get(sub_category, ["출발지", "목적지", "교통카드 잔액"])
@@ -284,6 +287,39 @@ def format_bullets(items: list[str]) -> str:
     if not items:
         return "- 현장에서 다시 확인해 주세요.  \n  (Please check again on site.)"
     return "\n\n".join(f"- {item}" for item in items)
+
+
+def build_supported_route_tips(origin: str, destination: str) -> list[str]:
+    route_key = {normalize_place_name(origin), normalize_place_name(destination)}
+    tips: list[str] = []
+
+    if {"중앙역", "한대앞역"} <= route_key:
+        tips.append(
+            "중앙역과 한대앞역 사이처럼 4호선으로 연결되는 구간은 지도 앱에서 4호선 방향과 한 정거장 이동 여부를 확인합니다.  \n(For a section connected by Line 4, such as Jungang Station and Hanyang University at Ansan Station, check the Line 4 direction and whether it is a one-stop ride in a map app.)"
+        )
+
+    if "한양대 ERICA" in route_key and ("중앙역" in route_key or "한대앞역" in route_key):
+        tips.append(
+            "한양대 ERICA가 포함된 경로는 지도 앱에서 3102번 등 학교 방면 버스 후보와 내릴 정류장을 함께 확인합니다.  \n(For a route involving Hanyang University ERICA, check school-bound bus options such as 3102 and the stop where you should get off in a map app.)"
+        )
+
+    return tips
+
+
+def normalize_place_name(place: str) -> str:
+    normalized = place.strip().lower()
+    aliases = {
+        "중앙역": "중앙역",
+        "안산 중앙역": "중앙역",
+        "한대앞": "한대앞역",
+        "한대앞역": "한대앞역",
+        "에리카역": "한대앞역",
+        "한양대 erica": "한양대 ERICA",
+        "한양대 에리카": "한양대 ERICA",
+        "erica": "한양대 ERICA",
+        "에리카": "한양대 ERICA",
+    }
+    return aliases.get(normalized, place.strip())
 
 
 def format_taxi_destination(destination: str) -> str:

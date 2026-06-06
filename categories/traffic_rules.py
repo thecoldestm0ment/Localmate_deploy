@@ -118,6 +118,29 @@ def has_route_like_intent(text: str) -> bool:
     return has_any_keyword(text, ROUTE_INTENT_KEYWORDS)
 
 
+def extract_route_points(user_input: str) -> tuple[str, str]:
+    text = user_input.strip()
+    patterns = [
+        r"(?P<origin>.+?)(?:에서|부터)\s*(?P<destination>.+?)(?:까지)?\s*(?:어떻게\s*가|가는\s*법|가려면|가고\s*싶|이동)",
+        r"출발지(?:는|:)?\s*(?P<origin>.+?)\s*(?:목적지(?:는|:)?|도착지(?:는|:)?)\s*(?P<destination>.+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if not match:
+            continue
+        origin = clean_route_point(match.group("origin"))
+        destination = clean_route_point(match.group("destination"))
+        if origin and destination:
+            return origin, destination
+    return "", ""
+
+
+def clean_route_point(value: str) -> str:
+    value = value.strip(" .!?\"'")
+    value = re.sub(r"(버스|지하철|전철|택시)(?:로|타고)?$", "", value).strip()
+    return value.strip(" .!?\"'")
+
+
 def is_realtime_arrival_request(text: str) -> bool:
     return (
         has_any_keyword(text, REALTIME_KEYWORDS)
@@ -182,6 +205,7 @@ def extract_destination_phrase(user_input: str) -> str:
 
 def can_handle_traffic(user_input: str) -> bool:
     text = normalize_text(user_input)
+    origin, destination = extract_route_points(user_input)
 
     if is_generic_card_loss(text):
         return False
@@ -195,6 +219,9 @@ def can_handle_traffic(user_input: str) -> bool:
     if has_supported_place_alias(text) and has_route_like_intent(text):
         return True
 
+    if has_route_like_intent(text) and origin and destination:
+        return True
+
     if has_route_like_intent(text) and has_any_keyword(text, GENERAL_DESTINATION_HINTS):
         return True
 
@@ -205,6 +232,7 @@ def analyze_traffic_input(user_input: str) -> dict[str, object]:
     text = normalize_text(user_input)
     route_like = has_route_like_intent(text)
     mentioned_places = find_supported_places(text)
+    origin, destination = extract_route_points(user_input)
 
     if is_generic_card_loss(text):
         return clarification_result(
@@ -228,6 +256,8 @@ def analyze_traffic_input(user_input: str) -> dict[str, object]:
         sub_category = SUB_TAXI
     elif is_transport_card_question(text):
         sub_category = SUB_TRANSPORT_CARD
+    elif origin and destination and route_like:
+        sub_category = SUB_FIXED_PLACE
     elif mentioned_places and route_like:
         sub_category = SUB_FIXED_PLACE
     elif has_any_keyword(text, TRANSIT_ROUTE_KEYWORDS):
@@ -245,15 +275,7 @@ def analyze_traffic_input(user_input: str) -> dict[str, object]:
             question=TRAFFIC_GENERIC_CLARIFICATION_QUESTION,
         )
 
-    if sub_category == SUB_FIXED_PLACE and len(mentioned_places) == 0:
-        return clarification_result(
-            sub_category=sub_category,
-            route_like=route_like,
-            mentioned_places=mentioned_places,
-            question=TRAFFIC_ROUTE_CLARIFICATION_QUESTION,
-        )
-
-    if sub_category == SUB_FIXED_PLACE and len(mentioned_places) == 1:
+    if sub_category == SUB_FIXED_PLACE and not (origin and destination) and len(mentioned_places) == 1:
         return clarification_result(
             sub_category=sub_category,
             route_like=route_like,
@@ -287,6 +309,8 @@ def analyze_traffic_input(user_input: str) -> dict[str, object]:
         "clarifying_question": "",
         "mentioned_places": mentioned_places,
         "route_like": route_like,
+        "origin": origin,
+        "destination": destination,
     }
 
 
