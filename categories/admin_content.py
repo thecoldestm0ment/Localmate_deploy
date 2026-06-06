@@ -263,16 +263,24 @@ def build_final_answer(
     )
     final_warnings = build_warnings(sub_category, is_expired_visa, warnings)
     final_sources = prioritize_sources(sub_category, sources)
+    checklist_section = format_admin_checkboxes(curated_checklist or checklist)
 
-    return "\n\n".join(
-        [
-            intro,
-            "## 상황 분류\n"
-            f"행정 / {sub_category}",
-            "## 지금 해야 할 일\n"
-            f"{format_numbered(curated_plan.get('todo_steps', action_plan.get('todo_steps', [])))}",
+    sections = [
+        intro,
+        "## 상황 분류\n"
+        f"행정 / {sub_category}",
+        "## 지금 해야 할 일\n"
+        f"{format_numbered(curated_plan.get('todo_steps', action_plan.get('todo_steps', [])))}",
+    ]
+
+    if checklist_section:
+        sections.append(
             "## 준비물 체크리스트\n"
-            f"{format_admin_checkboxes(curated_checklist or checklist)}",
+            f"{checklist_section}"
+        )
+
+    sections.extend(
+        [
             "## 기관 직원에게 말하거나 보여줄 문장\n"
             "아래 문장은 출입국외국인청, 주민센터, 상담 창구 직원에게 직접 말하거나 보여주면 됩니다.  \n"
             "(You can say or show the following sentences to staff at the immigration office, community center, or consultation desk.)\n\n"
@@ -286,7 +294,9 @@ def build_final_answer(
             "## 참고 문서\n"
             f"{format_sources(final_sources)}",
         ]
-    ).strip()
+    )
+
+    return "\n\n".join(sections).strip()
 
 
 def build_warnings(
@@ -307,8 +317,8 @@ def build_warnings(
 
 def format_admin_checkboxes(items: list[str]) -> str:
     if not items:
-        return "- [ ] 준비물이 있는지 다시 확인하세요.  \n  (Check again whether any documents are required.)"
-    return "\n".join(f"- [ ] {item}" for item in items)
+        return ""
+    return "  \n".join(f"□ {item}" for item in items)
 
 
 def prioritize_sources(sub_category: str, sources: list[str]) -> list[str]:

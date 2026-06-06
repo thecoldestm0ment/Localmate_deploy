@@ -11,7 +11,7 @@ TEST_CASES = [
             "외국인등록증을 잃어버렸다면 먼저 분실 여부를 확인",
             "행정 / 외국인등록증 분실",
             "## 준비물 체크리스트",
-            "- [ ] 여권 (Passport)",
+            "□ 여권 (Passport)",
             "## 기관 직원에게 말하거나 보여줄 문장",
             "(I lost my Alien Registration Card. Please tell me the reissue process.)",
             "admin/admin_alien_card_loss.md",

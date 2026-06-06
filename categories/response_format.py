@@ -20,8 +20,8 @@ def format_numbered(
 
 def format_checkboxes(items: list[str]) -> str:
     if not items:
-        return "- [ ] 준비물이 있는지 다시 확인하세요.  \n  (Check again whether any documents are required.)"
-    return "\n".join(f"- [ ] {item}" for item in items)
+        return ""
+    return "  \n".join(f"□ {item}" for item in items)
 
 
 def format_sources(

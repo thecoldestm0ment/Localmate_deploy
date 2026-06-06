@@ -196,7 +196,7 @@ def merge_medical_warnings(extra_warnings: list[str]) -> list[str]:
 
 def format_medical_checklist(items: list[str]) -> str:
     normalized_items = [str(item).strip() for item in items if str(item).strip()]
-    return "\n".join(f"□ {item}" for item in normalized_items)
+    return "  \n".join(f"□ {item}" for item in normalized_items)
 
 
 def build_final_answer(
@@ -207,26 +207,36 @@ def build_final_answer(
     warnings: list[str],
     sources: list[str],
 ) -> str:
-    return "\n".join(
+    checklist_section = format_medical_checklist(checklist)
+    sections = [
+        "## 상황 분류",
+        f"의료 / {sub_category}",
+        "",
+        "## 먼저 확인할 것",
+        format_bullets(action_plan.get("first_checks", [])),
+        "",
+        "## 해야 할 일",
+        format_numbered(action_plan.get("todo_steps", [])),
+        "",
+        "## 방문/온라인 확인",
+        format_bullets(action_plan.get("visit_or_online", [])),
+        "",
+        "## 처리 후 확인할 것",
+        format_bullets(action_plan.get("after_checks", [])),
+        "",
+    ]
+
+    if checklist_section:
+        sections.extend(
+            [
+                "## 준비물 체크리스트",
+                checklist_section,
+                "",
+            ]
+        )
+
+    sections.extend(
         [
-            "## 상황 분류",
-            f"의료 / {sub_category}",
-            "",
-            "## 먼저 확인할 것",
-            format_bullets(action_plan.get("first_checks", [])),
-            "",
-            "## 해야 할 일",
-            format_numbered(action_plan.get("todo_steps", [])),
-            "",
-            "## 방문/온라인 확인",
-            format_bullets(action_plan.get("visit_or_online", [])),
-            "",
-            "## 처리 후 확인할 것",
-            format_bullets(action_plan.get("after_checks", [])),
-            "",
-            "## 준비물 체크리스트",
-            format_medical_checklist(checklist),
-            "",
             "## 기관에서 사용할 한국어",
             f'- 기관에서 말할 문장:\n  "{korean_expressions.get("office", "")}"',
             f'- 전화로 물어볼 문장:\n  "{korean_expressions.get("phone", "")}"',
@@ -238,4 +248,8 @@ def build_final_answer(
             "## 참고 문서",
             format_sources(sources),
         ]
+    )
+
+    return "\n".join(
+        sections
     )
