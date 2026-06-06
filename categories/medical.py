@@ -241,7 +241,11 @@ def expression_node(state: MedicalState) -> MedicalState:
 def warning_node(state: MedicalState) -> MedicalState:
     return {
         **state,
-        "warnings": merge_medical_warnings(state["warnings"]),
+        "warnings": merge_medical_warnings(
+            state["warnings"],
+            sub_category=state["sub_category"],
+            user_input=state["user_input"],
+        ),
     }
 
 

@@ -44,6 +44,7 @@ class LocalMateCase:
     sub_category: str
     needs_clarification: bool
     contains: tuple[str, ...]
+    absent: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,10 @@ def validate_localmate_case(case: LocalMateCase) -> list[str]:
     for expected_text in case.contains:
         if expected_text not in result.answer:
             failures.append(f"missing text: {expected_text}")
+
+    for unexpected_text in case.absent:
+        if unexpected_text in result.answer:
+            failures.append(f"unexpected text: {unexpected_text}")
 
     return failures
 

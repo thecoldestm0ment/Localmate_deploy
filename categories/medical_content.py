@@ -6,6 +6,7 @@ from categories.response_format import (
     format_sources,
 )
 from categories.medical_rules import (
+    NO_DOCS_WARNING,
     SUB_GENERAL_HOSPITAL,
     SUB_EMERGENCY,
     SUB_ADMIN_INSURANCE,
@@ -26,6 +27,44 @@ DEFAULT_WARNINGS = [
     "병원 방문 전 진료 시간과 예약 필요 여부를 반드시 유선으로 확인하십시오.",
     "급성 질환, 중상 등 위급한 상황이 발생하면 즉시 119 또는 응급실로 연락하십시오.",
 ]
+
+ADMIN_INSURANCE_WARNINGS = [
+    "건강보험 가입 자격, 보험료, 체납, 감면 기준은 체류자격과 개인 상황에 따라 달라질 수 있습니다.",
+    "고지서의 납부 기한, 청구 금액, 가입자 정보를 먼저 확인하세요.",
+    "국민건강보험공단, 보건소, 공식 안내에서 현재 기준을 확인하세요.",
+]
+
+MEDICAL_CARE_SIGNAL_KEYWORDS = (
+    "증상",
+    "통증",
+    "아파",
+    "아프",
+    "아픈",
+    "열",
+    "기침",
+    "감기",
+    "응급",
+    "응급실",
+    "119",
+    "상처",
+    "화상",
+    "코피",
+    "부상",
+    "두통",
+    "복통",
+    "설사",
+    "구토",
+    "치통",
+    "숨쉬기",
+    "호흡",
+    "기절",
+    "쓰러",
+    "피가 많이",
+    "가슴 통증",
+    "심한 화상",
+    "부러",
+    "못 걷",
+)
 
 # LLM 오류 또는 누락 시 사용될 의료 파트 폴백 데이터 세트
 FALLBACK_BUNDLES: dict[str, dict[str, object]] = {
@@ -186,12 +225,37 @@ def format_context(docs: list[Document]) -> str:
     return "\n\n".join(parts)
 
 
-def merge_medical_warnings(extra_warnings: list[str]) -> list[str]:
-    warnings = list(DEFAULT_WARNINGS)
+def merge_medical_warnings(
+    extra_warnings: list[str],
+    sub_category: str,
+    user_input: str,
+) -> list[str]:
+    pure_admin_insurance = (
+        sub_category == SUB_ADMIN_INSURANCE
+        and not has_medical_care_signal(user_input)
+    )
+    warnings = (
+        list(ADMIN_INSURANCE_WARNINGS)
+        if pure_admin_insurance
+        else list(DEFAULT_WARNINGS)
+    )
     for warning in extra_warnings:
+        if not warning:
+            continue
+        if pure_admin_insurance and is_no_docs_warning(warning):
+            continue
         if warning not in warnings:
             warnings.append(warning)
     return warnings
+
+
+def has_medical_care_signal(user_input: str) -> bool:
+    normalized_input = user_input.strip().lower()
+    return any(keyword in normalized_input for keyword in MEDICAL_CARE_SIGNAL_KEYWORDS)
+
+
+def is_no_docs_warning(warning: str) -> bool:
+    return warning == NO_DOCS_WARNING or "관련 문서를 충분히 찾지 못했습니다" in warning
 
 
 def format_medical_checklist(items: list[str]) -> str:
