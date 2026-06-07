@@ -3,11 +3,11 @@ from typing import TypedDict
 
 from langchain_core.documents import Document
 from langgraph.graph import END, StateGraph
-from pydantic import BaseModel, Field
 
 from categories.medical_content import (
-    build_final_answer, format_context,
-    get_fallback_bundle, get_primary_source,
+    build_final_answer,
+    get_fallback_bundle,
+    get_primary_source,
     merge_medical_warnings,
 )
 from categories.medical_rules import (
@@ -23,29 +23,8 @@ from categories.medical_rules import (
     is_ambiguous_medical_input,
     normalize_text,
 )
-from categories.shared import get_llm, get_vectorstore
+from categories.shared import get_vectorstore
 from categories.types import CategoryResult
-from prompts.medical_prompts import render_medical_plan_prompt
-
-
-# LLM의 구조화된 출력을 받기 위한 Pydantic 스키마 정의
-class ActionPlanSchema(BaseModel):
-    first_checks: list[str] = Field(default_factory=list)
-    todo_steps: list[str] = Field(default_factory=list)
-    visit_or_online: list[str] = Field(default_factory=list)
-    after_checks: list[str] = Field(default_factory=list)
-
-
-class KoreanExpressionsSchema(BaseModel):
-    office: str
-    phone: str
-    message: str
-
-
-class MedicalDraftSchema(BaseModel):
-    action_plan: ActionPlanSchema
-    checklist: list[str] = Field(default_factory=list)
-    korean_expressions: KoreanExpressionsSchema
 
 
 # LangGraph 내부에서 데이터를 전달할 상태 구조 정의
@@ -98,16 +77,6 @@ def run_category(user_input: str) -> CategoryResult:
     )
 
 
-def invoke_structured(prompt: str, schema: type[BaseModel]) -> BaseModel:
-    try:
-        structured_llm = get_llm().with_structured_output(schema)
-        return structured_llm.invoke(prompt)
-    except RuntimeError:
-        raise
-    except Exception as exc:
-        raise RuntimeError(GENERATION_ERROR_MESSAGE) from exc
-
-
 def build_initial_state(user_input: str) -> MedicalState:
     return {
         "user_input": user_input,
@@ -156,10 +125,6 @@ def retrieve_node(state: MedicalState) -> MedicalState:
     except Exception:
         docs = []
 
-    warnings = list(state["warnings"])
-    if not docs:
-        warnings.append(NO_DOCS_WARNING)
-
     sources: list[str] = []
     primary_source = get_primary_source(state["sub_category"])
     if primary_source:
@@ -170,6 +135,10 @@ def retrieve_node(state: MedicalState) -> MedicalState:
         if source and source not in sources:
             sources.append(source)
 
+    warnings = list(state["warnings"])
+    if not docs and not sources:
+        warnings.append(NO_DOCS_WARNING)
+
     return {
         **state,
         "retrieved_docs": docs,
@@ -179,33 +148,7 @@ def retrieve_node(state: MedicalState) -> MedicalState:
 
 
 def plan_node(state: MedicalState) -> MedicalState:
-    prompt = render_medical_plan_prompt(
-        user_input=state["user_input"],
-        sub_category=state["sub_category"],
-        context=format_context(state["retrieved_docs"]),
-    )
-
-    try:
-        result = invoke_structured(prompt, MedicalDraftSchema)
-        bundle = {
-            "action_plan": {
-                "first_checks": result.action_plan.first_checks or [],
-                "todo_steps": result.action_plan.todo_steps or [],
-                "visit_or_online": result.action_plan.visit_or_online or [],
-                "after_checks": result.action_plan.after_checks or [],
-            },
-            "checklist": [item.strip() for item in result.checklist if item.strip()],
-            "korean_expressions": {
-                "office": result.korean_expressions.office.strip(),
-                "phone": result.korean_expressions.phone.strip(),
-                "message": result.korean_expressions.message.strip(),
-            },
-        }
-    except RuntimeError as exc:
-        if str(exc) != GENERATION_ERROR_MESSAGE:
-            raise
-        bundle = get_fallback_bundle(state["sub_category"])
-
+    bundle = get_fallback_bundle(state["sub_category"])
     return {
         **state,
         "action_plan": bundle["action_plan"],
