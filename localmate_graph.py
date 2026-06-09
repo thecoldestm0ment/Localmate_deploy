@@ -2,8 +2,9 @@ import logging
 import os
 import re
 from dataclasses import replace
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
 
+from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 from categories import CATEGORY_REGISTRY, CategoryHandlerSpec, admin, medical, traffic
@@ -69,6 +70,30 @@ SAFETY_FALLBACKS = {
     "medical": "저는 진단이나 처방을 할 수 없어요. 심한 증상이나 응급 상황이면 119 또는 응급실에 바로 문의해주세요.",
     "traffic": "실시간 도착 시간, 막차 시간, 요금은 변동될 수 있어요. 지도 앱이나 현장 안내기를 함께 확인해주세요.",
 }
+
+
+class LocalMateState(TypedDict, total=False):
+    user_input: str
+    cleaned_input: str
+    question_mode: str
+    answer_mode: str
+
+    category: str | None
+    sub_category: str | None
+    route_reason: str
+    routed_input: str
+
+    previous_category: str | None
+    previous_sub_category: str | None
+    previous_answer_summary: str | None
+    chat_history: list[dict[str, Any]]
+
+    selected_handler: CategoryHandlerSpec | None
+    category_result: CategoryResult
+    final_answer: str
+    sources: list[str]
+    needs_clarification: bool
+    clarifying_question: str | None
 
 
 class RouterSchema(BaseModel):
@@ -260,35 +285,201 @@ def build_follow_up_query(user_input: str, context: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def run_localmate_result(
-    user_input: str,
-    context: dict[str, Any] | None = None,
-) -> CategoryResult:
-    cleaned_input = user_input.strip()
+def context_from_state(state: LocalMateState) -> dict[str, Any]:
+    return {
+        "question_mode": state.get("question_mode"),
+        "previous_category": state.get("previous_category"),
+        "previous_sub_category": state.get("previous_sub_category"),
+        "previous_answer_summary": state.get("previous_answer_summary"),
+        "chat_history": state.get("chat_history") or [],
+    }
+
+
+def input_validate_node(state: LocalMateState) -> LocalMateState:
+    cleaned_input = state.get("user_input", "").strip()
     if not cleaned_input:
         raise RuntimeError("질문을 입력해주세요.")
 
-    context = context or {}
-    answer_mode = detect_answer_mode(cleaned_input)
+    question_mode = state.get("question_mode")
+    updates: LocalMateState = {
+        "cleaned_input": cleaned_input,
+        "chat_history": state.get("chat_history") or [],
+    }
 
-    if should_require_previous_context(cleaned_input, context, answer_mode):
-        return CategoryResult.clarification(
-            FOLLOW_UP_WITHOUT_CONTEXT_QUESTION,
-            answer_mode=answer_mode,
-            answer_summary=FOLLOW_UP_WITHOUT_CONTEXT_QUESTION,
-        )
+    if question_mode == QUESTION_MODE_NEW:
+        updates.update({
+            "previous_category": None,
+            "previous_sub_category": None,
+            "previous_answer_summary": None,
+        })
 
-    selected_handler, routed_input = choose_handler(cleaned_input, context, answer_mode)
+    return updates
+
+
+def answer_mode_node(state: LocalMateState) -> LocalMateState:
+    return {
+        "answer_mode": detect_answer_mode(state["cleaned_input"]),
+    }
+
+
+def context_check_node(state: LocalMateState) -> LocalMateState:
+    answer_mode = state.get("answer_mode", ANSWER_MODE_DEFAULT)
+    context = context_from_state(state)
+    if not should_require_previous_context(state["cleaned_input"], context, answer_mode):
+        return {}
+
+    result = CategoryResult.clarification(
+        FOLLOW_UP_WITHOUT_CONTEXT_QUESTION,
+        answer_mode=answer_mode,
+        answer_summary=FOLLOW_UP_WITHOUT_CONTEXT_QUESTION,
+    )
+    return {
+        "category_result": result,
+        "category": result.category,
+        "sub_category": result.sub_category,
+        "needs_clarification": True,
+        "clarifying_question": result.clarifying_question,
+        "route_reason": "follow_up_without_context",
+    }
+
+
+def route_node(state: LocalMateState) -> LocalMateState:
+    answer_mode = state.get("answer_mode", ANSWER_MODE_DEFAULT)
+    selected_handler, routed_input = choose_handler(
+        state["cleaned_input"],
+        context_from_state(state),
+        answer_mode,
+    )
 
     if selected_handler is None:
-        return CategoryResult.clarification(
+        result = CategoryResult.clarification(
             TOP_LEVEL_CLARIFICATION_QUESTION,
             answer_mode=answer_mode,
             answer_summary=TOP_LEVEL_CLARIFICATION_QUESTION,
         )
+        return {
+            "category_result": result,
+            "needs_clarification": True,
+            "clarifying_question": result.clarifying_question,
+            "route_reason": "top_level_clarification",
+        }
 
-    result = selected_handler.module.run_category(routed_input)
-    return normalize_category_result(result, answer_mode)
+    category = getattr(selected_handler.module, "CATEGORY_NAME", None)
+    return {
+        "selected_handler": selected_handler,
+        "routed_input": routed_input,
+        "category": category,
+        "route_reason": f"routed_to_{category or 'unknown'}",
+    }
+
+
+def category_graph_node(state: LocalMateState) -> LocalMateState:
+    selected_handler = state.get("selected_handler")
+    if selected_handler is None:
+        result = CategoryResult.clarification(
+            TOP_LEVEL_CLARIFICATION_QUESTION,
+            answer_mode=state.get("answer_mode", ANSWER_MODE_DEFAULT),
+            answer_summary=TOP_LEVEL_CLARIFICATION_QUESTION,
+        )
+        return {"category_result": result}
+
+    result = selected_handler.module.run_category(
+        state.get("routed_input") or state["cleaned_input"]
+    )
+    return {"category_result": result}
+
+
+def normalize_answer_node(state: LocalMateState) -> LocalMateState:
+    result = normalize_category_result(
+        state["category_result"],
+        state.get("answer_mode", ANSWER_MODE_DEFAULT),
+    )
+    return {
+        "category_result": result,
+        "category": result.category,
+        "sub_category": result.sub_category,
+        "sources": list(result.sources),
+        "needs_clarification": result.needs_clarification,
+        "clarifying_question": result.clarifying_question,
+    }
+
+
+def final_node(state: LocalMateState) -> LocalMateState:
+    result = state.get("category_result")
+    if result is None:
+        result = CategoryResult.clarification(
+            TOP_LEVEL_CLARIFICATION_QUESTION,
+            answer_mode=state.get("answer_mode", ANSWER_MODE_DEFAULT),
+            answer_summary=TOP_LEVEL_CLARIFICATION_QUESTION,
+        )
+
+    return {
+        "category_result": result,
+        "final_answer": result.answer,
+        "category": result.category,
+        "sub_category": result.sub_category,
+        "sources": list(result.sources),
+        "needs_clarification": result.needs_clarification,
+        "clarifying_question": result.clarifying_question,
+    }
+
+
+def should_skip_to_final(state: LocalMateState) -> str:
+    if state.get("category_result") is not None:
+        return "final"
+    return "continue"
+
+
+def build_localmate_state_graph():
+    graph = StateGraph(LocalMateState)
+    graph.add_node("input_validate", input_validate_node)
+    graph.add_node("answer_mode", answer_mode_node)
+    graph.add_node("context_check", context_check_node)
+    graph.add_node("route", route_node)
+    graph.add_node("category_graph", category_graph_node)
+    graph.add_node("normalize_answer", normalize_answer_node)
+    graph.add_node("final", final_node)
+
+    graph.set_entry_point("input_validate")
+    graph.add_edge("input_validate", "answer_mode")
+    graph.add_edge("answer_mode", "context_check")
+    graph.add_conditional_edges(
+        "context_check",
+        should_skip_to_final,
+        {"final": "final", "continue": "route"},
+    )
+    graph.add_conditional_edges(
+        "route",
+        should_skip_to_final,
+        {"final": "final", "continue": "category_graph"},
+    )
+    graph.add_edge("category_graph", "normalize_answer")
+    graph.add_edge("normalize_answer", "final")
+    graph.add_edge("final", END)
+    return graph.compile()
+
+
+LOCALMATE_STATE_GRAPH = build_localmate_state_graph()
+
+
+def run_localmate_result(
+    user_input: str,
+    context: dict[str, Any] | None = None,
+) -> CategoryResult:
+    context = context or {}
+    initial_state: LocalMateState = {
+        "user_input": user_input,
+        "question_mode": context.get("question_mode"),
+        "previous_category": context.get("previous_category"),
+        "previous_sub_category": context.get("previous_sub_category"),
+        "previous_answer_summary": context.get("previous_answer_summary"),
+        "chat_history": context.get("chat_history") or [],
+    }
+    final_state = LOCALMATE_STATE_GRAPH.invoke(initial_state)
+    result = final_state.get("category_result")
+    if result is None:
+        raise RuntimeError("안내를 생성하는 중 오류가 발생했습니다. 설정을 확인해주세요.")
+    return result
 
 
 def run_localmate(user_input: str, context: dict[str, Any] | None = None) -> str:
