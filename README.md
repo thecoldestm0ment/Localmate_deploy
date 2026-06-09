@@ -1,47 +1,55 @@
-# LocalMate 카테고리 분리 구조
+# LocalMate
 
-외국인 주민이 질문을 입력하면 카테고리를 먼저 나누고, 각 카테고리 모듈이 독립적으로 답변을 생성하는 구조입니다.  
-현재는 `localmate_graph.py`가 얇은 router 역할만 하고, 행정 로직은 `categories/admin.py`, 의료 로직은 `categories/medical.py`, 교통 로직은 `categories/traffic.py`에서 관리합니다.
+외국인 주민을 위한 지역 생활 적응 AI Agent입니다.
 
-## 환경 설정
+사용자의 질문을 `행정`, `의료`, `교통` 카테고리로 나누고, FAQ 문서를 검색한 뒤 상황별 행동 안내, 준비물, 사용할 한국어 표현, 주의사항을 제공합니다.
 
-- 운영 환경: Windows PowerShell
-- Python: 3.12
-- 가상환경 예시: `D:\dev\langchain-practice\.venv`
-- API key는 `.env`의 `GOOGLE_API_KEY`를 사용합니다.
+## 주요 기능
 
-## 패키지 설치
+- LangGraph 기반 top-level workflow
+- Chroma 기반 FAQ RAG 검색
+- 행정 / 의료 / 교통 카테고리 분리
+- 새 질문 / 후속 질문 대화 맥락 유지
+- `summary`, `checklist_only`, `expression_only`, `detail` 답변 모드 지원
+- Streamlit 채팅 UI
+- 참고 문서는 사용자 답변 본문이 아니라 expander에서 확인
 
-```powershell
-python -m pip install -U pip setuptools wheel
-python -m pip install langchain langchain-core langchain-google-genai langgraph langchain-chroma langchain-text-splitters streamlit python-dotenv pydantic
-```
+## 기술 스택
 
-## `.env` 작성 예시
-
-```dotenv
-GOOGLE_API_KEY=your_google_api_key
-```
+- Python 3.12
+- LangChain
+- LangGraph
+- Chroma
+- Google Gemini
+- Streamlit
+- Pydantic
+- python-dotenv
 
 ## 프로젝트 구조
 
 ```text
 langchain-practice/
-├─ .env
-├─ .gitignore
 ├─ app.py
 ├─ build_vector_db.py
 ├─ localmate_graph.py
-├─ README.md
 ├─ test_retriever.py
 ├─ categories/
 │  ├─ __init__.py
-│  ├─ admin.py
-│  ├─ medical.py
+│  ├─ types.py
 │  ├─ shared.py
+│  ├─ response_format.py
+│  ├─ admin.py
+│  ├─ admin_rules.py
+│  ├─ admin_content.py
+│  ├─ medical.py
+│  ├─ medical_rules.py
+│  ├─ medical_content.py
 │  ├─ traffic.py
-│  └─ types.py
+│  ├─ traffic_rules.py
+│  └─ traffic_content.py
 ├─ prompts/
+│  ├─ admin_prompts.py
+│  ├─ medical_prompts.py
 │  └─ traffic_prompts.py
 ├─ data/
 │  ├─ faq/
@@ -50,134 +58,187 @@ langchain-practice/
 │  │  └─ traffic/
 │  └─ places/
 │     └─ ansan_fixed_places.json
+├─ test/
+│  ├─ test_localmate.py
+│  ├─ test_localmate_admin.py
+│  ├─ test_localmate_medical.py
+│  └─ test_localmate_traffic.py
 └─ chroma_db/
 ```
 
-## 카테고리 분리 원칙
+## 환경 설정
 
-- `localmate_graph.py`는 `run_localmate(user_input: str) -> str` 진입점을 제공합니다.
-- `categories/__init__.py`가 `CATEGORY_HANDLERS` registry를 관리합니다.
-- 각 카테고리 모듈은 `can_handle()`와 `run_category()` 인터페이스를 구현합니다.
-- 내부적으로 `run_category()`는 `CategoryResult`를 반환하고, router가 최종 사용자 응답 문자열을 꺼내 씁니다.
-- 공용 Chroma DB는 하나만 사용하고, 각 카테고리는 metadata `category` filter로 자기 문서만 검색합니다.
+Windows PowerShell 기준입니다.
 
-## Why LangGraph
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 
-RAG는 FAQ 문서를 검색해 근거 기반 답변을 만드는 역할을 합니다.
-LangGraph는 질문 유형 분류, 새 질문/후속 질문 분기, 확인 질문, `answer_mode` 결정, memory update 같은 상태 흐름을 관리합니다.
-그래서 LocalMate는 단순히 문서를 검색하는 RAG 챗봇이 아니라, 사용자의 상황과 이전 맥락에 따라 다음 노드를 선택하는 workflow 기반 Agent 구조를 가집니다.
-Streamlit에서는 `새 질문`을 선택하면 이전 routing 맥락을 초기화하고, `후속 질문`을 선택하면 이전 category/sub_category를 이어서 사용합니다.
-이 구조 덕분에 카테고리별 RAG 검색은 독립적으로 유지하면서도 대화 흐름은 상위 router에서 일관되게 제어할 수 있습니다.
+python -m pip install -U pip setuptools wheel
+python -m pip install langchain langchain-core langchain-google-genai langgraph langchain-chroma langchain-text-splitters streamlit python-dotenv pydantic
+```
+
+`.env` 파일을 프로젝트 루트에 만듭니다.
+
+```dotenv
+GOOGLE_API_KEY=your_google_api_key
+```
+
+API key는 코드에 직접 넣지 않습니다.
+
+## Vector DB 생성
+
+FAQ 문서를 Chroma DB로 저장합니다.
+
+```powershell
+python build_vector_db.py
+```
+
+문서나 embedding 모델이 바뀌면 기존 DB를 삭제하고 다시 생성합니다.
+
+```powershell
+Remove-Item -Recurse -Force chroma_db
+python build_vector_db.py
+```
+
+embedding 모델은 반드시 아래 모델을 사용합니다.
+
+```text
+models/gemini-embedding-001
+```
+
+## 실행 방법
+
+Retriever 확인:
+
+```powershell
+python test_retriever.py
+```
+
+LangGraph 콘솔 실행:
+
+```powershell
+python localmate_graph.py
+```
+
+Streamlit 앱 실행:
+
+```powershell
+streamlit run app.py
+```
+
+전체 실행 순서:
+
+```powershell
+Remove-Item -Recurse -Force chroma_db
+python build_vector_db.py
+python test_retriever.py
+python localmate_graph.py
+streamlit run app.py
+```
+
+## LangGraph 흐름
+
+`localmate_graph.py`는 최상위 workflow를 담당합니다.
+
+```text
+input_validate
+→ answer_mode
+→ context_check
+→ route
+→ category_graph
+→ normalize_answer
+→ final
+→ END
+```
+
+역할:
+
+- 입력 검증
+- 답변 모드 판단
+- 새 질문 / 후속 질문 맥락 확인
+- 행정 / 의료 / 교통 라우팅
+- 카테고리 handler 실행
+- 최종 답변 포맷 정리
+
+공개 함수:
+
+```python
+run_localmate(user_input: str, context: dict | None = None) -> str
+run_localmate_result(user_input: str, context: dict | None = None) -> CategoryResult
+```
+
+## 카테고리 구조
+
+각 카테고리는 같은 인터페이스를 사용합니다.
+
+```python
+can_handle(user_input: str) -> bool
+run_category(user_input: str) -> CategoryResult
+```
+
+카테고리별 파일 책임:
+
+- `*_rules.py`: 키워드, 분류 규칙, 세부 intent 판단
+- `*_content.py`: 답변 내용, 체크리스트, 표현, 포맷팅
+- `*.py`: 카테고리 진입점과 graph/handler
+- `prompts/*.py`: LLM prompt
 
 ## Traffic 카테고리 범위
 
-traffic 카테고리는 실시간 길찾기 엔진이 아니라, 한국 교통 이용에 익숙하지 않은 외국인 주민을 위한 생활 안내 MVP입니다.
+교통 카테고리는 실시간 길찾기 서비스가 아닙니다.
 
-- 교통카드 구매, 충전, 잔액 확인, 기본 사용법
-- 버스 탑승, 하차 태그, 환승 기본 안내
-- 택시 이용과 기사님에게 말할 표현
-- 막차와 야간 이동 시 무엇을 확인해야 하는지 안내
-- 안산 고정 장소 예시 중심 이동 안내
+지원 범위:
 
-현재 지원하는 고정 장소는 아래 3개입니다.
+- 교통카드 충전 / 사용
+- 버스 승하차 / 하차 태그 / 환승
+- 버스 번호와 정류장 확인 방법
+- 택시 기사님에게 말할 표현
+- 막차와 야간 이동 시 확인할 것
+- 안산 고정 장소 중심 안내
+
+지원하는 고정 장소:
 
 - 중앙역
 - 한대앞역
 - 한양대 ERICA
 
-실시간 교통 API는 사용하지 않습니다.
 
-- 정확한 버스 도착 시간 제공 안 함
-- 정확한 막차 시간 제공 안 함
-- 정확한 택시 요금 계산 안 함
+정확한 정보는 지도 앱, 정류장 안내기, 역 안내판을 함께 확인해야 합니다.
 
-정확한 경로와 실시간 정보는 지도 앱, 정류장 안내기, 역 안내판을 함께 확인해야 합니다.
+## 테스트
 
-## Vector DB 생성 방법
-
-`build_vector_db.py`는 `data/faq/**/*.md` 문서를 재귀적으로 읽고, YAML frontmatter와 source metadata를 파싱합니다.
-
-metadata에는 최소 아래 값을 저장합니다.
-
-- `source`
-- `category`
-- `display_category`
-- `sub_category`
-- `region`
-- `source_name`
-- `source_url`
-- `last_checked`
-
-`source`는 `traffic/transport_card.md` 같은 `data/faq` 기준 상대 경로로 저장합니다.
-
-embedding 모델은 반드시 `models/gemini-embedding-001`을 사용합니다.
+카테고리 통합 테스트:
 
 ```powershell
-python build_vector_db.py
+python -m test.test_localmate
 ```
 
-실행이 끝나면 문서 수와 청크 수를 출력합니다.
+카테고리별 테스트:
 
-## Retriever 테스트 방법
+```powershell
+python -m test.test_localmate_admin
+python -m test.test_localmate_medical
+python -m test.test_localmate_traffic
+```
+
+Retriever 테스트:
 
 ```powershell
 python test_retriever.py
+python test_retriever_admin.py
+python test_retriever_traffic.py
 ```
-
-현재 테스트 스크립트는 admin과 traffic query를 각각 category filter로 검색하고, `source`, `category`, `display_category`, `sub_category`, 문서 일부를 출력합니다.
-
-## LangGraph 실행 방법
-
-```powershell
-python localmate_graph.py
-```
-
-빈 입력이면 `외국인등록증을 잃어버렸어요. 어떻게 해야 하나요?` 예시 질문을 사용합니다.
-
-## Streamlit 실행 방법
-
-```powershell
-streamlit run app.py
-```
-
-앱은 계속 `run_localmate()`만 호출하므로, 카테고리별 구현이 분리되어도 UI 코드는 크게 바뀌지 않습니다.
-
-## `chroma_db` 삭제 후 재생성해야 하는 경우
-
-아래 상황에서는 기존 `chroma_db`를 삭제하고 다시 만들어야 합니다.
-
-- embedding 모델이 바뀐 경우
-- FAQ 문서 내용이 바뀐 경우
-- metadata 구조가 바뀐 경우
-- FAQ 폴더 구조가 바뀐 경우
-- traffic 문서나 장소 데이터가 추가되거나 수정된 경우
-
-문서를 추가한 뒤에는 아래처럼 기존 `chroma_db`를 삭제하고 다시 생성하세요.
-
-```powershell
-Remove-Item -Recurse -Force chroma_db
-python build_vector_db.py
-```
-
-## 실행 순서
-
-```powershell
-Remove-Item -Recurse -Force chroma_db
-python build_vector_db.py
-python test_retriever.py
-python localmate_graph.py
-streamlit run app.py
-```
-
-## 현재 상태
-
-- 행정 카테고리는 `categories/admin.py`에서 동작합니다.
-- 의료 카테고리는 `categories/medical.py` 인터페이스와 placeholder 응답 구조만 준비되어 있습니다.
-- 교통 카테고리는 `categories/traffic.py`에서 동작하며, 교통 문서는 `data/faq/traffic/`에 저장합니다.
-- 안산 고정 장소 데이터는 `data/places/ansan_fixed_places.json`에서 관리합니다.
 
 ## 오류 안내
 
-- `GOOGLE_API_KEY`가 없으면 `.env 파일에 GOOGLE_API_KEY를 설정해주세요.` 메시지를 출력합니다.
-- `chroma_db`가 없으면 `먼저 python build_vector_db.py를 실행해주세요.` 메시지를 출력합니다.
-- 모델 호출 실패 시 traceback 대신 사용자용 안내 메시지를 보여주도록 구성했습니다.
+- `GOOGLE_API_KEY`가 없으면 `.env 파일에 GOOGLE_API_KEY를 설정해주세요.` 메시지가 나옵니다.
+- `chroma_db`가 없으면 `먼저 python build_vector_db.py를 실행해주세요.` 메시지가 나옵니다.
+- 모델/API 호출 실패 시 traceback 대신 사용자용 오류 메시지를 보여줍니다.
+
+## 주의사항
+
+- 행정/비자/체류 관련 내용은 법률 조언처럼 단정하지 않습니다.
+- 의료 카테고리는 진단이나 처방을 하지 않습니다.
+- 교통 카테고리는 실시간 위치, 요금, 막차 시간을 지어내지 않습니다.
+- FAQ 문서를 수정한 뒤에는 `chroma_db`를 재생성해야 합니다.
