@@ -10,6 +10,9 @@ class CategoryResult:
     warnings: tuple[str, ...] = ()
     needs_clarification: bool = False
     clarifying_question: str | None = None
+    answer_mode: str = "default"
+    answer_summary: str | None = None
+    raw_answer: str | None = None
 
     @classmethod
     def success(
@@ -19,6 +22,9 @@ class CategoryResult:
         sub_category: str | None = None,
         sources: tuple[str, ...] | list[str] = (),
         warnings: tuple[str, ...] | list[str] = (),
+        answer_mode: str = "default",
+        answer_summary: str | None = None,
+        raw_answer: str | None = None,
     ) -> "CategoryResult":
         return cls(
             answer=answer,
@@ -26,6 +32,9 @@ class CategoryResult:
             sub_category=sub_category,
             sources=tuple(sources),
             warnings=tuple(warnings),
+            answer_mode=answer_mode,
+            answer_summary=answer_summary,
+            raw_answer=raw_answer or answer,
         )
 
     @classmethod
@@ -35,6 +44,9 @@ class CategoryResult:
         category: str | None = None,
         sub_category: str | None = None,
         warnings: tuple[str, ...] | list[str] = (),
+        answer_mode: str = "default",
+        answer_summary: str | None = None,
+        raw_answer: str | None = None,
     ) -> "CategoryResult":
         return cls(
             answer=question,
@@ -43,4 +55,7 @@ class CategoryResult:
             warnings=tuple(warnings),
             needs_clarification=True,
             clarifying_question=question,
+            answer_mode=answer_mode,
+            answer_summary=answer_summary,
+            raw_answer=raw_answer or question,
         )

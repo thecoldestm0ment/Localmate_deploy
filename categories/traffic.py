@@ -201,7 +201,7 @@ def prepare_response_node(state: TrafficState) -> TrafficState:
             destination=state["destination"],
             user_input=state["user_input"],
         ),
-        "warnings": build_warnings(state["warnings"]),
+        "warnings": build_warnings(state["warnings"], state["sub_category"]),
     }
 
 

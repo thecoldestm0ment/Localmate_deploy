@@ -61,6 +61,14 @@ langchain-practice/
 - 내부적으로 `run_category()`는 `CategoryResult`를 반환하고, router가 최종 사용자 응답 문자열을 꺼내 씁니다.
 - 공용 Chroma DB는 하나만 사용하고, 각 카테고리는 metadata `category` filter로 자기 문서만 검색합니다.
 
+## Why LangGraph
+
+RAG는 FAQ 문서를 검색해 근거 기반 답변을 만드는 역할을 합니다.
+LangGraph는 질문 유형 분류, 새 질문/후속 질문 분기, 확인 질문, `answer_mode` 결정, memory update 같은 상태 흐름을 관리합니다.
+그래서 LocalMate는 단순히 문서를 검색하는 RAG 챗봇이 아니라, 사용자의 상황과 이전 맥락에 따라 다음 노드를 선택하는 workflow 기반 Agent 구조를 가집니다.
+Streamlit에서는 `새 질문`을 선택하면 이전 routing 맥락을 초기화하고, `후속 질문`을 선택하면 이전 category/sub_category를 이어서 사용합니다.
+이 구조 덕분에 카테고리별 RAG 검색은 독립적으로 유지하면서도 대화 흐름은 상위 router에서 일관되게 제어할 수 있습니다.
+
 ## Traffic 카테고리 범위
 
 traffic 카테고리는 실시간 길찾기 엔진이 아니라, 한국 교통 이용에 익숙하지 않은 외국인 주민을 위한 생활 안내 MVP입니다.

@@ -1,8 +1,11 @@
 import logging
 import os
-from typing import Literal
+import re
+from dataclasses import replace
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
 from categories import CATEGORY_REGISTRY, CategoryHandlerSpec, admin, medical, traffic
 from categories.shared import get_llm
 from categories.types import CategoryResult
@@ -11,89 +14,87 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_QUESTION = "외국인등록증을 잃어버렸어요. 어떻게 해야 하나요?"
 TOP_LEVEL_CLARIFICATION_QUESTION = (
-    "행정, 의료, 교통 중 어떤 도움이 필요한지 조금 더 알려주세요."
+    "행정 문의인지, 의료 문의인지, 교통 문의인지 조금 더 알려주세요."
 )
+
 ROUTER_MODE_ENV = "LOCALMATE_ROUTER"
 RULE_ROUTER_MODE = "rule"
-URGENT_MEDICAL_KEYWORDS = (
-    "응급",
-    "응급실",
-    "119",
-    "숨쉬기",
-    "숨 쉬기",
-    "호흡",
-    "기절",
-    "쓰러",
-    "피가 많이",
-    "가슴 통증",
-    "심한 화상",
-    "부러",
-    "갑자기 심하게",
-    "emergency",
-    "emergency room",
+
+ANSWER_MODE_DEFAULT = "default"
+ANSWER_MODE_SUMMARY = "summary"
+ANSWER_MODE_CHECKLIST = "checklist_only"
+ANSWER_MODE_EXPRESSION = "expression_only"
+ANSWER_MODE_DETAIL = "detail"
+QUESTION_MODE_NEW = "new"
+QUESTION_MODE_FOLLOW_UP = "follow_up"
+FOLLOW_UP_WITHOUT_CONTEXT_QUESTION = (
+    "아직 이어갈 이전 질문이 없어요. 먼저 새 질문으로 상황을 알려주세요.\n"
+    "(There is no previous question to continue from. Please start with a new question first.)"
 )
 
+URGENT_MEDICAL_KEYWORDS = (
+    "응급", "응급실", "119", "기절", "호흡곤란", "숨이 안", "피가 많이",
+    "가슴 통증", "심한 통증", "갑자기 아파", "emergency", "emergency room",
+)
 
-# 1. RouterSchema (Literal 적용으로 출력값 제한)
-class RouterSchema(BaseModel):
-    category: Literal["행정", "의료", "교통", "미분류"] = Field(
-        description="사용자 질문의 핵심 의도에 맞는 단 하나의 카테고리 선택"
-    )
-    reason: str = Field(description="이 카테고리로 분류한 명확한 의도 중심의 근거")
+CHECKLIST_HINTS = (
+    "준비물만", "준비물 만", "체크리스트만", "체크리스트만 줘",
+    "준비물 다시", "체크리스트 다시",
+)
+SUMMARY_HINTS = ("짧게", "간단히", "요약", "다시 요약")
+EXPRESSION_HINTS = (
+    "문장만", "표현만", "한국어 문장만", "영어 문장만", "뭐라고 말",
+    "뭐라고 물어", "전화로 뭐라고", "기관에 뭐라고", "기사한테 뭐라고",
+    "기사님한테 뭐라고", "어떻게 말",
+)
+DETAIL_HINTS = ("더 자세히", "상세히", "자세하게", "자세히 알려")
+FOLLOW_UP_HINTS = CHECKLIST_HINTS + SUMMARY_HINTS + EXPRESSION_HINTS + DETAIL_HINTS + (
+    "다시 알려", "방금", "이전", "그거",
+)
 
+CATEGORY_LABELS = {
+    "admin": "행정",
+    "medical": "의료",
+    "traffic": "교통",
+}
 
-# 2. 의도 분류 프롬프트 템플릿
-ROUTER_PROMPT_TEMPLATE = """당신은 한국 거주 외국인 지원 서비스(LocalMate)의 핵심 Intent Classifier(의도 분류기)입니다.
-사용자 질문의 겉으로 드러난 단어에 절대 낚이지 말고, 문장 전체의 맥락을 분석하여 사용자의 '최종 목적'에 맞는 카테고리로 분류하세요.
-
-[카테고리 분류 가이드라인]
-- 행정: 비자, 체류자격, 외국인등록증, 출입국, 정부 민원 및 주택 임대차 계약(계약서, 보증금, 전입신고 등)과 관련된 '행정 절차 및 서류' 관련 질의
-- 의료: 병원 이용, 질병/통증/증상, 약국 처방, 야간 응급 상황 등 '신체적 건강 및 의료 서비스 자체'가 목적인 질의
-- 교통: 버스/지하철/택시 이용, 실시간 위치, 막차 시간, 길찾기 등 '장소 간 이동 수단 및 이동 방법'에 관한 질의
-- 미분류: 위의 세 카테고리에 전혀 해당하지 않는 엉뚱한 질문이거나 해석이 불가능한 경우
-- 의료 관련 행정(예: 외국인/취약계층의 보건소 이용 자격, 무료 예방접종 대상 여부, 의료비 지원 신청 등)은 [행정]이 아니라 [의료]로 분류해야 합니다.
-
-[필수 판단 원칙]
-1. [Keyword Matching 절대 금지]: 절대로 특정 단어 하나만 보고 분류하지 마세요. 문장 전체의 의미와 사용자의 최종 목적을 분석해야 합니다.
-2. [최종 목적 기준 분류]: 여러 카테고리의 단어가 동시에 등장할 경우, 사용자가 최종적으로 얻고자 하는 '정보의 종류'를 기준으로 분류합니다.
-3. [이동 중심 판정]: 장소까지 이동하는 방법을 묻는 경우는 목적지가 병원, 관공서, 아파트, 학교 등 그 어디라도 무조건 '교통'으로 분류합니다.
-4. [절차 중심 판정]: 주거 공간(아파트, 원룸 등) 단어가 나오더라도, 핵심 의도가 이사나 물리적 이동이 아니라 계약서 작성, 보증금, 전입신고라면 무조건 '행정'으로 분류합니다.
-
-[Few-shot 예시]
-- Q: 아파트 가고 싶어요 / 아파트 가는 방법 알려주세요
-  A: {{"category": "교통", "reason": "'아파트'라는 단어 내부의 '아파'라는 글자 조각 때문에 의료로 분류하면 안 되며, 문맥상 해당 장소까지의 이동 수단을 묻고 있으므로 교통이 맞습니다."}}
-
-- Q: 병원까지 가는 버스 알려주세요
-  A: {{"category": "교통", "reason": "'병원'이라는 의료 단어가 포함되어 있으나, 최종적으로 원하는 정보는 버스 이동 경로이므로 교통으로 분류합니다."}}
-
-- Q: 외국인등록증 주소 변경하려고 주민센터 가는 길 알려주세요
-  A: {{"category": "교통", "reason": "행정 기관이 목적지이고 주소 변경이라는 행정 단어가 등장했으나, 최종적으로 원하는 것은 해당 장소까지 이동하는 방법이므로 교통으로 분류합니다."}}
-
-- Q: 새벽에 아파서 병원 가고 싶어요 / 응급실 가야 하나요?
-  A: {{"category": "의료", "reason": "'병원 가고 싶다'라는 이동 표현이 포함되어 교통과 혼동될 수 있으나, 본질적인 목적은 야간에 병원에 갈 수 있는지를 묻는 것이므로 의료로 분류합니다."}}
-
-- Q: 외국인도 보건소에서 무료로 예방접종을 받을 수 있나요?
-  A: {{"category": "의료", "reason": "외국인 자격 요건 및 무료 혜택 여부를 묻는 질문으로 행정과 혼동될 수 있으나, 보건소 이용 및 예방접종이라는 의료 행정과 관련된 보건 서비스 이용이 핵심 목적이므로 의료로 분류합니다."}}
-
-[출력 형식 및 제약 조건]
-반드시 아래 지정된 JSON 포맷으로만 응답해야 하며, 다른 여분의 설명이나 마크다운 태그(```json 등)는 절대 붙이지 마세요.
-
-{{
-  "category": "행정",
-  "reason": "분류 근거를 설명"
-}}
-
-사용자 질문:
-{user_input}
-"""
-
-
-# 3. 한글 카테고리명을 실제 임포트된 파이썬 모듈 객체와 매핑
 CATEGORY_MODULE_MAP = {
     "행정": admin,
     "의료": medical,
     "교통": traffic,
 }
+
+SAFETY_FALLBACKS = {
+    "admin": "체류자격과 개인 상황에 따라 절차와 필요 서류가 달라질 수 있어요. 공식 안내를 꼭 확인해주세요.",
+    "medical": "저는 진단이나 처방을 할 수 없어요. 심한 증상이나 응급 상황이면 119 또는 응급실에 바로 문의해주세요.",
+    "traffic": "실시간 도착 시간, 막차 시간, 요금은 변동될 수 있어요. 지도 앱이나 현장 안내기를 함께 확인해주세요.",
+}
+
+
+class RouterSchema(BaseModel):
+    category: Literal["행정", "의료", "교통", "미분류"] = Field(
+        description="사용자 질문의 최종 목적에 맞는 카테고리"
+    )
+    reason: str = Field(description="분류 근거")
+
+
+ROUTER_PROMPT_TEMPLATE = """당신은 LocalMate의 상위 카테고리 라우터입니다.
+사용자의 최종 목적을 보고 행정, 의료, 교통, 미분류 중 하나만 고르세요.
+
+분류 기준:
+- 행정: 외국인등록증, 주소 변경, 비자, 체류기간, 기관 방문, 행정 서류
+- 의료: 증상, 병원 이용, 약국, 예방접종, 응급 상황, 건강 관련 문의
+- 교통: 버스, 지하철, 택시, 교통카드, 환승, 막차, 길찾기, 이동 방법
+- 미분류: 위 카테고리를 판단하기 어려운 질문
+
+중요:
+- 목적지가 병원이나 행정기관이어도 "가는 법", "버스", "택시"처럼 이동 방법을 묻는 질문은 교통입니다.
+- 응급실, 119, 심한 통증처럼 긴급 의료 신호가 있으면 의료입니다.
+- 단어 하나만 보지 말고 문장 전체의 목적을 보세요.
+
+사용자 질문:
+{user_input}
+"""
 
 
 def normalize_text(text: str) -> str:
@@ -103,6 +104,15 @@ def normalize_text(text: str) -> str:
 def get_handler_for_module(module: object) -> CategoryHandlerSpec | None:
     for spec in CATEGORY_REGISTRY:
         if spec.module == module:
+            return spec
+    return None
+
+
+def get_handler_for_category(category: str | None) -> CategoryHandlerSpec | None:
+    if not category:
+        return None
+    for spec in CATEGORY_REGISTRY:
+        if getattr(spec.module, "CATEGORY_NAME", None) == category:
             return spec
     return None
 
@@ -126,33 +136,27 @@ def route_with_rules(user_input: str) -> CategoryHandlerSpec | None:
 
 
 def route_with_llm_intent(user_input: str) -> CategoryHandlerSpec | None:
-    """Gemini LLM을 활용해 사용자 의도를 분류하고, 일치하는 핸들러 스펙을 반환합니다."""
     structured_llm = get_llm().with_structured_output(RouterSchema)
     prompt = ROUTER_PROMPT_TEMPLATE.format(user_input=user_input)
-    
+
     try:
         response = structured_llm.invoke(prompt)
-        category = response.category
-        reason = response.reason
-
-        logger.debug(
-            "AI intent router classified query",
-            extra={
-                "user_input": user_input,
-                "category": category,
-                "reason": reason,
-            },
-        )
-
     except Exception:
         logger.debug("LLM intent router failed", exc_info=True)
         return None
 
-    # LLM 문자열 결과에 대응하는 모듈 객체 획득
-    target_module = CATEGORY_MODULE_MAP.get(category)
+    logger.debug(
+        "AI intent router classified query",
+        extra={
+            "user_input": user_input,
+            "category": response.category,
+            "reason": response.reason,
+        },
+    )
+
+    target_module = CATEGORY_MODULE_MAP.get(response.category)
     if target_module is None:
         return None
-
     return get_handler_for_module(target_module)
 
 
@@ -171,21 +175,431 @@ def route_user_input(user_input: str) -> CategoryHandlerSpec | None:
     return route_with_rules(user_input)
 
 
-def run_localmate_result(user_input: str) -> CategoryResult:
+def detect_answer_mode(user_input: str) -> str:
+    text = normalize_text(user_input)
+    if any(hint in text for hint in DETAIL_HINTS):
+        return ANSWER_MODE_DETAIL
+    if any(hint in text for hint in CHECKLIST_HINTS):
+        return ANSWER_MODE_CHECKLIST
+    if any(hint in text for hint in EXPRESSION_HINTS):
+        return ANSWER_MODE_EXPRESSION
+    if any(hint in text for hint in SUMMARY_HINTS):
+        return ANSWER_MODE_SUMMARY
+    return ANSWER_MODE_DEFAULT
+
+
+def is_follow_up_request(user_input: str, answer_mode: str, context: dict[str, Any]) -> bool:
+    if context.get("question_mode") == QUESTION_MODE_FOLLOW_UP:
+        return True
+    if context.get("question_mode") == QUESTION_MODE_NEW:
+        return False
+    if not context.get("previous_category"):
+        return False
+    if answer_mode != ANSWER_MODE_DEFAULT:
+        return True
+
+    text = normalize_text(user_input)
+    return len(text) <= 40 and any(hint in text for hint in FOLLOW_UP_HINTS)
+
+
+def is_generic_follow_up(user_input: str) -> bool:
+    text = normalize_text(user_input)
+    return len(text) <= 40 and any(hint in text for hint in FOLLOW_UP_HINTS)
+
+
+def choose_handler(
+    user_input: str,
+    context: dict[str, Any],
+    answer_mode: str,
+) -> tuple[CategoryHandlerSpec | None, str]:
+    if context.get("question_mode") == QUESTION_MODE_NEW:
+        return route_user_input(user_input), user_input
+
+    previous_handler = get_handler_for_category(context.get("previous_category"))
+
+    if previous_handler and is_follow_up_request(user_input, answer_mode, context):
+        current_handler = route_urgent_medical(user_input) or route_with_rules(user_input)
+        if current_handler is None:
+            return previous_handler, build_follow_up_query(user_input, context)
+
+        current_category = getattr(current_handler.module, "CATEGORY_NAME", None)
+        previous_category = getattr(previous_handler.module, "CATEGORY_NAME", None)
+        if current_category == previous_category or is_generic_follow_up(user_input):
+            return previous_handler, build_follow_up_query(user_input, context)
+
+        return current_handler, user_input
+
+    return route_user_input(user_input), user_input
+
+
+def build_follow_up_query(user_input: str, context: dict[str, Any]) -> str:
+    previous_category = context.get("previous_category") or ""
+    previous_sub_category = context.get("previous_sub_category") or ""
+    previous_summary = context.get("previous_answer_summary") or ""
+    recent_history = context.get("chat_history") or []
+
+    recent_lines = []
+    for item in recent_history[-3:]:
+        if isinstance(item, dict):
+            query = item.get("user") or item.get("query") or ""
+            answer = item.get("assistant") or item.get("answer_summary") or ""
+            if query:
+                recent_lines.append(f"사용자: {query}")
+            if answer:
+                recent_lines.append(f"LocalMate: {str(answer)[:180]}")
+
+    parts = [
+        f"이전 카테고리: {previous_category}",
+        f"이전 세부 상황: {previous_sub_category}",
+    ]
+    if previous_summary:
+        parts.append(f"이전 안내 요약: {previous_summary}")
+    if recent_lines:
+        parts.append("최근 대화:\n" + "\n".join(recent_lines))
+    parts.append(f"이번 요청: {user_input}")
+    return "\n".join(parts)
+
+
+def run_localmate_result(
+    user_input: str,
+    context: dict[str, Any] | None = None,
+) -> CategoryResult:
     cleaned_input = user_input.strip()
     if not cleaned_input:
         raise RuntimeError("질문을 입력해주세요.")
 
-    selected_handler = route_user_input(cleaned_input)
-    
+    context = context or {}
+    answer_mode = detect_answer_mode(cleaned_input)
+
+    if should_require_previous_context(cleaned_input, context, answer_mode):
+        return CategoryResult.clarification(
+            FOLLOW_UP_WITHOUT_CONTEXT_QUESTION,
+            answer_mode=answer_mode,
+            answer_summary=FOLLOW_UP_WITHOUT_CONTEXT_QUESTION,
+        )
+
+    selected_handler, routed_input = choose_handler(cleaned_input, context, answer_mode)
+
     if selected_handler is None:
-        return CategoryResult.clarification(TOP_LEVEL_CLARIFICATION_QUESTION)
+        return CategoryResult.clarification(
+            TOP_LEVEL_CLARIFICATION_QUESTION,
+            answer_mode=answer_mode,
+            answer_summary=TOP_LEVEL_CLARIFICATION_QUESTION,
+        )
 
-    return selected_handler.module.run_category(cleaned_input)
+    result = selected_handler.module.run_category(routed_input)
+    return normalize_category_result(result, answer_mode)
 
 
-def run_localmate(user_input: str) -> str:
-    return run_localmate_result(user_input).answer
+def run_localmate(user_input: str, context: dict[str, Any] | None = None) -> str:
+    return run_localmate_result(user_input, context=context).answer
+
+
+def should_require_previous_context(
+    user_input: str,
+    context: dict[str, Any],
+    answer_mode: str,
+) -> bool:
+    has_previous_context = bool(context.get("previous_category"))
+    if has_previous_context:
+        return False
+    if context.get("question_mode") == QUESTION_MODE_FOLLOW_UP:
+        return True
+    if context.get("question_mode") == QUESTION_MODE_NEW:
+        return False
+    return answer_mode != ANSWER_MODE_DEFAULT or is_generic_follow_up(user_input)
+
+
+def normalize_category_result(result: CategoryResult, answer_mode: str) -> CategoryResult:
+    raw_answer = result.raw_answer or result.answer
+    if result.needs_clarification:
+        summary = summarize_text(result.answer)
+        return replace(
+            result,
+            answer=strip_source_section(result.answer),
+            answer_mode=answer_mode,
+            answer_summary=summary,
+            raw_answer=raw_answer,
+        )
+
+    formatted_answer = format_answer_for_mode(result, answer_mode)
+    return replace(
+        result,
+        answer=formatted_answer,
+        answer_mode=answer_mode,
+        answer_summary=summarize_text(formatted_answer),
+        raw_answer=raw_answer,
+    )
+
+
+def format_answer_for_mode(result: CategoryResult, answer_mode: str) -> str:
+    parsed = parse_markdown_sections(result.answer)
+    sections = [section for section in parsed["sections"] if not is_source_section(section)]
+    display_category = CATEGORY_LABELS.get(result.category or "", result.category or "미분류")
+    classification = f"{display_category} / {result.sub_category or '-'}"
+    expression_section = find_section(sections, "expression")
+
+    content = ExtractedContent(
+        intro=compact_body(parsed["intro"], max_items=2),
+        action=find_section_body(sections, "action"),
+        checklist=find_section_body(sections, "checklist"),
+        expression=expression_section["body"] if expression_section else "",
+        expression_title=clean_expression_title(expression_section),
+        warning=find_section_body(sections, "warning") or get_safety_fallback(result.category),
+    )
+
+    if answer_mode == ANSWER_MODE_DETAIL:
+        return build_detail_answer(classification, content, sections)
+    if answer_mode == ANSWER_MODE_SUMMARY:
+        return build_summary_answer(classification, content)
+    if answer_mode == ANSWER_MODE_CHECKLIST:
+        return build_focus_answer(
+            classification=classification,
+            title="준비물",
+            body=content.checklist,
+            warning=content.warning,
+        )
+    if answer_mode == ANSWER_MODE_EXPRESSION:
+        return build_focus_answer(
+            classification=classification,
+            title=content.expression_title,
+            body=content.expression,
+            warning=content.warning,
+        )
+    return build_default_answer(classification, content)
+
+
+class ExtractedContent:
+    def __init__(
+        self,
+        intro: str,
+        action: str,
+        checklist: str,
+        expression: str,
+        expression_title: str,
+        warning: str,
+    ) -> None:
+        self.intro = intro
+        self.action = action
+        self.checklist = checklist
+        self.expression = expression
+        self.expression_title = expression_title
+        self.warning = warning
+
+
+def parse_markdown_sections(answer: str) -> dict[str, Any]:
+    lines = strip_source_section(answer).splitlines()
+    intro_lines: list[str] = []
+    sections: list[dict[str, str]] = []
+    current_heading: str | None = None
+    current_body: list[str] = []
+
+    for line in lines:
+        if line.startswith("## "):
+            if current_heading is None:
+                intro_lines = current_body
+            else:
+                sections.append({
+                    "heading": current_heading.strip(),
+                    "body": "\n".join(current_body).strip(),
+                })
+            current_heading = line.removeprefix("## ").strip()
+            current_body = []
+        else:
+            current_body.append(line)
+
+    if current_heading is None:
+        intro_lines = current_body
+    else:
+        sections.append({
+            "heading": current_heading.strip(),
+            "body": "\n".join(current_body).strip(),
+        })
+
+    return {
+        "intro": "\n".join(intro_lines).strip(),
+        "sections": sections,
+    }
+
+
+def strip_source_section(answer: str) -> str:
+    pattern = r"\n?##\s*(참고\s*문서|참고한\s*문서)[\s\S]*$"
+    return re.sub(pattern, "", answer).strip()
+
+
+def is_source_section(section: dict[str, str]) -> bool:
+    heading = section["heading"].replace(" ", "")
+    body = section["body"]
+    if "참고문서" in heading or "참고한문서" in heading:
+        return True
+    return ".md" in body and ("admin/" in body or "traffic/" in body or "medical/" in body)
+
+
+def build_default_answer(classification: str, content: ExtractedContent) -> str:
+    parts = []
+    if content.intro:
+        parts.append(content.intro)
+
+    parts.extend([
+        f"**상황 분류:** {classification}",
+        "**지금 할 일**\n" + compact_body(content.action, max_items=4),
+    ])
+    if content.checklist:
+        parts.append("**준비물**\n" + compact_body(content.checklist, max_items=5))
+    if content.expression:
+        parts.append(f"**{content.expression_title}**\n" + compact_body(content.expression, max_items=3))
+    if content.warning:
+        parts.append("**주의**\n" + compact_body(content.warning, max_items=2))
+    return "\n\n".join(part for part in parts if part.strip()).strip()
+
+
+def build_detail_answer(
+    classification: str,
+    content: ExtractedContent,
+    sections: list[dict[str, str]],
+) -> str:
+    parts = []
+    if content.intro:
+        parts.append(content.intro)
+    parts.append(f"**상황 분류:** {classification}")
+
+    for section in sections:
+        if is_classification_section(section):
+            continue
+        body = compact_body(section["body"], max_items=6)
+        if body:
+            parts.append(f"**{clean_heading(section['heading'])}**\n{body}")
+
+    if content.warning and not any(section_matches_role(section, "warning") for section in sections):
+        parts.append("**주의**\n" + compact_body(content.warning, max_items=3))
+    return "\n\n".join(parts).strip()
+
+
+def build_summary_answer(classification: str, content: ExtractedContent) -> str:
+    summary = content.action or content.intro
+    parts = [
+        f"**상황 분류:** {classification}",
+        "**요약**\n" + compact_body(summary, max_items=3),
+    ]
+    if content.warning:
+        parts.append("**꼭 확인할 점**\n" + compact_body(content.warning, max_items=2))
+    return "\n\n".join(parts).strip()
+
+
+def build_focus_answer(
+    classification: str,
+    title: str,
+    body: str,
+    warning: str,
+) -> str:
+    if not body:
+        body = "이전 답변에서 해당 항목을 충분히 찾지 못했습니다. 공식 안내나 담당 기관에 한 번 더 확인해주세요."
+
+    parts = [
+        f"**상황 분류:** {classification}",
+        f"**{title}**\n{compact_body(body, max_items=6)}",
+    ]
+    if warning:
+        parts.append("**주의**\n" + compact_body(warning, max_items=2))
+    return "\n\n".join(parts).strip()
+
+
+def find_section_body(sections: list[dict[str, str]], role: str) -> str:
+    section = find_section(sections, role)
+    if section:
+        return section["body"]
+
+    non_classification = [section for section in sections if not is_classification_section(section)]
+    if not non_classification:
+        return ""
+
+    if role == "warning":
+        return non_classification[-1]["body"] if len(non_classification) >= 4 else ""
+
+    fallback_index = {
+        "action": 0,
+        "checklist": 1,
+        "expression": 2,
+    }.get(role, 0)
+
+    try:
+        return non_classification[fallback_index]["body"]
+    except IndexError:
+        return ""
+
+
+def find_section(sections: list[dict[str, str]], role: str) -> dict[str, str] | None:
+    for section in sections:
+        if section_matches_role(section, role):
+            return section
+    return None
+
+
+def clean_expression_title(section: dict[str, str] | None) -> str:
+    if not section:
+        return "사용할 수 있는 한국어"
+    heading = clean_heading(section["heading"])
+    return heading or "사용할 수 있는 한국어"
+
+
+def section_matches_role(section: dict[str, str], role: str) -> bool:
+    heading = section["heading"].replace(" ", "")
+    body = section["body"]
+    if role == "action":
+        return any(token in heading for token in ("해야", "확인", "방법", "행동", "안내", "할일"))
+    if role == "checklist":
+        return "체크" in heading or "준비물" in heading or "□" in body
+    if role == "expression":
+        return any(token in heading for token in ("한국어", "문장", "표현", "말"))
+    if role == "warning":
+        return "주의" in heading or "확인할점" in heading
+    return False
+
+
+def is_classification_section(section: dict[str, str]) -> bool:
+    heading = section["heading"].replace(" ", "")
+    body = section["body"]
+    return "상황분류" in heading or bool(re.match(r"^(행정|의료|교통)\s*/", body.strip()))
+
+
+def clean_heading(heading: str) -> str:
+    return heading.strip() or "안내"
+
+
+def compact_body(body: str, max_items: int = 4) -> str:
+    lines = [line.rstrip() for line in body.splitlines()]
+    items: list[str] = []
+    current: list[str] = []
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if re.match(r"^(\d+\.|-|□)", stripped):
+            if current:
+                items.append(" ".join(current).strip())
+            current = [stripped]
+        elif current:
+            current.append(stripped)
+        else:
+            items.append(stripped)
+
+    if current:
+        items.append(" ".join(current).strip())
+
+    return "\n".join(items[:max_items]).strip()
+
+
+def get_safety_fallback(category: str | None) -> str:
+    return SAFETY_FALLBACKS.get(category or "", "상황에 따라 절차가 달라질 수 있으니 공식 안내를 확인해주세요.")
+
+
+def summarize_text(answer: str, limit: int = 220) -> str:
+    text = re.sub(r"#+\s*", "", answer)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + "..."
 
 
 def main() -> None:
