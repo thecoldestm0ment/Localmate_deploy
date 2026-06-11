@@ -4,7 +4,7 @@ from typing import TypedDict
 from langchain_core.documents import Document
 from langgraph.graph import END, StateGraph
 
-from categories.shared import get_vectorstore
+from categories.shared import similarity_search_relevant
 from categories.traffic_content import (
     build_action_steps,
     build_checklist,
@@ -21,7 +21,6 @@ from categories.traffic_rules import (
     ROUTE_PRIORITY,
     SUB_FIXED_PLACE,
     SUB_TAXI,
-    TRAFFIC_FILTER,
     analyze_traffic_input,
     can_handle_traffic,
     extract_destination_phrase,
@@ -120,10 +119,11 @@ def route_after_analysis(state: TrafficState) -> str:
 
 def retrieve_node(state: TrafficState) -> TrafficState:
     try:
-        docs = get_vectorstore().similarity_search(
-            state["user_input"],
+        docs = similarity_search_relevant(
+            query=state["user_input"],
+            category=CATEGORY_NAME,
+            sub_category=state["sub_category"],
             k=3,
-            filter=TRAFFIC_FILTER,
         )
     except RuntimeError:
         raise

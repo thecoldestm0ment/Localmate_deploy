@@ -2,7 +2,7 @@
 title: 택시 이용과 기사님에게 말할 표현
 category: traffic
 display_category: 교통
-sub_category: 택시 이용
+sub_category: 택시 표현
 region: ansan
 source_name: LocalMate 데모용 교통 FAQ
 source_url: local
@@ -41,3 +41,10 @@ last_checked: 2026-05-29
 - 예: “한양대 ERICA 정문으로 가주세요.”
 - 예: “카드 결제 가능해요?”
 - 예: “영수증 주세요.”
+
+## 검색 키워드/질문 예시
+- 택시 기사님에게 목적지를 말하고 싶어요
+- 한양대 ERICA로 가주세요
+- 택시 카드 결제 가능해요?
+- 여기서 내려주세요
+- 택시 영수증 주세요

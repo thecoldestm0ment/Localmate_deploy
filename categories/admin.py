@@ -11,7 +11,6 @@ from categories.admin_content import (
     merge_admin_warnings,
 )
 from categories.admin_rules import (
-    ADMIN_FILTER,
     ADMIN_KEYWORDS,
     CATEGORY_NAME,
     DISPLAY_CATEGORY,
@@ -23,7 +22,7 @@ from categories.admin_rules import (
     is_ambiguous_card_loss,
     normalize_text,
 )
-from categories.shared import get_llm, get_vectorstore
+from categories.shared import get_llm, similarity_search_relevant
 from categories.types import CategoryResult
 from prompts.admin_prompts import render_admin_plan_prompt
 
@@ -146,10 +145,11 @@ def retrieve_node(state: AdminState) -> AdminState:
         return state
 
     try:
-        docs = get_vectorstore().similarity_search(
-            state["user_input"],
+        docs = similarity_search_relevant(
+            query=state["user_input"],
+            category=CATEGORY_NAME,
+            sub_category=state["sub_category"],
             k=3,
-            filter=ADMIN_FILTER,
         )
     except RuntimeError:
         raise

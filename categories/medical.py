@@ -11,7 +11,6 @@ from categories.medical_content import (
     merge_medical_warnings,
 )
 from categories.medical_rules import (
-    MEDICAL_FILTER,
     MEDICAL_KEYWORDS,
     CATEGORY_NAME,
     DISPLAY_CATEGORY,
@@ -23,7 +22,7 @@ from categories.medical_rules import (
     is_ambiguous_medical_input,
     normalize_text,
 )
-from categories.shared import get_vectorstore
+from categories.shared import similarity_search_relevant
 from categories.types import CategoryResult
 
 
@@ -115,10 +114,11 @@ def retrieve_node(state: MedicalState) -> MedicalState:
         return state
 
     try:
-        docs = get_vectorstore().similarity_search(
-            state["user_input"],
+        docs = similarity_search_relevant(
+            query=state["user_input"],
+            category=CATEGORY_NAME,
+            sub_category=state["sub_category"],
             k=3,
-            filter=MEDICAL_FILTER,
         )
     except RuntimeError:
         raise

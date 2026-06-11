@@ -239,9 +239,11 @@ def extract_destination_phrase(user_input: str) -> str:
     normalized = re.sub(r"^기사님에게\s*", "", normalized)
 
     patterns = [
+        r"(?P<destination>.+?)(?:에|으로|로)\s*택시\s*타고\s*가고\s*싶",
+        r"(?P<destination>.+?)(?:에|으로|로)\s*택시",
         r"(?P<destination>.+?)(?:으로|로)\s*가달라고",
         r"(?P<destination>.+?)(?:으로|로)\s*가고\s*싶",
-        r"(?P<destination>.+?)(?:으로|로)\s*택시",
+        r"(?P<destination>.+?)(?:에|으로|로)\s*가고\s*싶",
     ]
     for pattern in patterns:
         match = re.search(pattern, normalized)

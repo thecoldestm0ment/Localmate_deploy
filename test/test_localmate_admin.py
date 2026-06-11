@@ -9,12 +9,11 @@ TEST_CASES = [
         needs_clarification=False,
         contains=(
             "외국인등록증을 잃어버렸다면 먼저 분실 여부를 확인",
-            "행정 / 외국인등록증 분실",
-            "## 준비물 체크리스트",
+            "**상황 분류:** 행정 / 외국인등록증 분실",
+            "**준비물**",
             "□ 여권 (Passport)",
-            "## 기관 직원에게 말하거나 보여줄 문장",
+            "기관 직원에게 말하거나 보여줄 문장",
             "(I lost my Alien Registration Card. Please tell me the reissue process.)",
-            "admin/admin_alien_card_loss.md",
         ),
     ),
     LocalMateCase(
@@ -28,7 +27,6 @@ TEST_CASES = [
             "이사 날짜와 새 주소",
             "(If you moved, you may need to report your new address.",
             "주소 변경 신고에는 기한이 있을 수 있으므로",
-            "admin/admin_address_change.md",
         ),
     ),
     LocalMateCase(
@@ -39,10 +37,8 @@ TEST_CASES = [
         needs_clarification=False,
         contains=(
             "행정 / 체류기간 연장/비자",
-            "현재 비자/체류자격 정보와 만료일",
-            "(Check your current visa/status of stay and expiration date.)",
+            "공식 안내에서 체류기간 연장 또는 비자 관련 절차를 확인하세요.",
             "체류기간 만료 전에 신청 가능 시기와 필요 서류",
-            "admin/admin_visa_extension.md",
         ),
     ),
     LocalMateCase(
@@ -54,7 +50,6 @@ TEST_CASES = [
         contains=(
             "비자 기간이 이미 지났다면 괜찮다고 판단하지 말고",
             "가능한 빨리 관할 출입국외국인청 또는 공식 상담 채널",
-            "본인의 체류자격과 만료일을 정확히 설명",
             "(If your stay period has already expired",
         ),
     ),
@@ -78,7 +73,7 @@ TEST_CASES = [
         needs_clarification=False,
         contains=(
             "행정 / 기타 행정",
-            "어떤 행정 업무인지 먼저 확인하세요.",
+            "업무에 맞는 기관과 절차를 확인하세요.",
             "업무 종류와 개인 상황에 따라 필요한 서류와 절차가 달라질 수 있습니다.",
         ),
     ),

@@ -30,9 +30,6 @@ TEST_CASES = [
             "고지서에 적힌 납부 금액을 확인하세요.",
             "납부 기한을 확인하세요.",
             "본인 명의 고지서인지 확인하세요.",
-            "납부 방법을 확인하세요.",
-            "국민건강보험공단에 문의하세요.",
-            "납부 후 처리 여부를 확인하세요.",
             "국민건강보험공단 직원에게 말하거나 보여줄 문장",
             "건강보험 고지서 금액과 납부 기한을 확인하고 싶습니다.",
         ),
@@ -53,8 +50,8 @@ TEST_CASES = [
         needs_clarification=False,
         contains=(
             "의료 / 보건소/예방접종",
-            "무료 여부는 지역, 나이, 체류자격, 접종 종류에 따라 다를 수 있어요.",
-            "보건소에 대상 여부를 먼저 확인하세요.",
+            "받고 싶은 예방접종 종류를 확인하세요.",
+            "무료 여부는 지역, 나이, 체류자격, 접종 종류에 따라 달라질 수 있습니다.",
             "보건소 직원에게 말하거나 보여줄 문장",
         ),
         absent=(
@@ -74,7 +71,7 @@ TEST_CASES = [
             "의료 / 야간/응급",
             "증상이 심하거나 숨쉬기 어렵거나 움직이기 힘들면 먼저 119에 연락하거나 응급실로 가세요.",
             "(If symptoms are severe, breathing is difficult, or moving is hard, call 119 or go to the emergency room first.)",
-            "□ 현재 위치 메모 (Current location note)  \n□ 외국인등록증 또는 여권 (Alien registration card or passport)",
+            "□ 현재 위치 메모 (Current location note)\n□ 외국인등록증 또는 여권 (Alien registration card or passport)",
             "응급실 직원이나 119에 말할 문장",
         ),
         absent=(

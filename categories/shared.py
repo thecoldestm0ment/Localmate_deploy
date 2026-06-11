@@ -4,6 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
+from langchain_core.documents import Document
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
     GoogleGenerativeAIEmbeddings,
@@ -47,3 +48,41 @@ def get_llm() -> ChatGoogleGenerativeAI:
         model=CHAT_MODEL,
         temperature=0.2,
     )
+
+
+def build_metadata_filter(category: str, sub_category: str | None = None) -> dict:
+    if not sub_category:
+        return {"category": category}
+    return {
+        "$and": [
+            {"category": category},
+            {"sub_category": sub_category},
+        ]
+    }
+
+
+def similarity_search_relevant(
+    query: str,
+    category: str,
+    sub_category: str,
+    k: int = 3,
+) -> list[Document]:
+    vectorstore = get_vectorstore()
+    exact_docs = vectorstore.similarity_search(
+        query,
+        k=k,
+        filter=build_metadata_filter(category, sub_category),
+    )
+    if exact_docs:
+        return exact_docs
+
+    category_docs = vectorstore.similarity_search(
+        query,
+        k=k,
+        filter=build_metadata_filter(category),
+    )
+    return [
+        doc
+        for doc in category_docs
+        if doc.metadata.get("sub_category") == sub_category
+    ]

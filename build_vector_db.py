@@ -27,6 +27,32 @@ CATEGORY_ALIASES = {
     "의료": "medical",
     "교통": "traffic",
 }
+ALLOWED_SUBCATEGORIES_BY_CATEGORY = {
+    "admin": {
+        "외국인등록증 분실",
+        "주소 변경",
+        "체류기간 연장/비자",
+        "기관 방문/예약",
+        "기타 행정",
+    },
+    "medical": {
+        "일반 진료/약국",
+        "야간/응급",
+        "건강보험 고지서/보험료",
+        "보건소/예방접종",
+        "의료비/보험 자격 문의",
+    },
+    "traffic": {
+        "버스 경로 확인",
+        "하차 태그·환승",
+        "교통카드 충전",
+        "교통카드 사용",
+        "택시 표현",
+        "고정 장소 이동",
+        "막차/야간 이동",
+    },
+}
+REQUIRED_METADATA_KEYS = ("source", "category", "sub_category")
 
 
 def ensure_google_api_key() -> None:
@@ -152,7 +178,43 @@ def load_markdown_documents() -> list[Document]:
     if not documents:
         raise RuntimeError("벡터 DB를 만들 문서가 없습니다. data/faq/**/*.md 파일을 확인해주세요.")
 
+    validate_documents(documents)
     return documents
+
+
+def validate_documents(documents: list[Document]) -> None:
+    seen_sources: set[str] = set()
+    errors: list[str] = []
+
+    for document in documents:
+        metadata = document.metadata
+        source = str(metadata.get("source", "")).strip()
+        category = str(metadata.get("category", "")).strip()
+        sub_category = str(metadata.get("sub_category", "")).strip()
+
+        for key in REQUIRED_METADATA_KEYS:
+            if not str(metadata.get(key, "")).strip():
+                errors.append(f"{source or 'unknown'}: missing metadata `{key}`")
+
+        if source in seen_sources:
+            errors.append(f"{source}: duplicate source metadata")
+        elif source:
+            seen_sources.add(source)
+
+        allowed_subcategories = ALLOWED_SUBCATEGORIES_BY_CATEGORY.get(category)
+        if allowed_subcategories is None:
+            errors.append(f"{source}: unsupported category `{category}`")
+        elif sub_category not in allowed_subcategories:
+            errors.append(
+                f"{source}: unsupported sub_category `{sub_category}` "
+                f"for category `{category}`"
+            )
+
+    if errors:
+        message = "FAQ metadata validation failed:\n" + "\n".join(
+            f"- {error}" for error in errors
+        )
+        raise RuntimeError(message)
 
 
 def rebuild_vector_db(documents: list[Document]) -> int:
@@ -161,6 +223,7 @@ def rebuild_vector_db(documents: list[Document]) -> int:
         chunk_overlap=100,
     )
     chunks = splitter.split_documents(documents)
+    add_chunk_indexes(chunks)
 
     if DB_DIR.exists():
         shutil.rmtree(DB_DIR)
@@ -172,6 +235,18 @@ def rebuild_vector_db(documents: list[Document]) -> int:
         persist_directory=str(DB_DIR),
     )
     return len(chunks)
+
+
+def add_chunk_indexes(chunks: list[Document]) -> None:
+    counts_by_source: dict[str, int] = {}
+    for chunk in chunks:
+        source = str(chunk.metadata.get("source", "unknown"))
+        chunk_index = counts_by_source.get(source, 0)
+        chunk.metadata = {
+            **chunk.metadata,
+            "chunk_index": str(chunk_index),
+        }
+        counts_by_source[source] = chunk_index + 1
 
 
 def main() -> None:

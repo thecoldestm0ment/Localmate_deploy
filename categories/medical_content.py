@@ -17,9 +17,9 @@ from categories.medical_rules import (
 PRIMARY_SOURCE_BY_SUBCATEGORY = {
     SUB_GENERAL_HOSPITAL: "medical/medical_general.md",
     SUB_EMERGENCY: "medical/medical_emergency.md",
-    SUB_HEALTH_INSURANCE_BILL: "medical/medical_admin.md",
-    SUB_PUBLIC_HEALTH_VACCINATION: "medical/medical_admin.md",
-    SUB_MEDICAL_COST_INSURANCE: "medical/medical_admin.md",
+    SUB_HEALTH_INSURANCE_BILL: "medical/medical_health_insurance_bill.md",
+    SUB_PUBLIC_HEALTH_VACCINATION: "medical/medical_public_health_vaccination.md",
+    SUB_MEDICAL_COST_INSURANCE: "medical/medical_cost_insurance.md",
 }
 
 INTRO_BY_SUBCATEGORY = {

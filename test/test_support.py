@@ -54,6 +54,7 @@ class RetrieverCase:
     query: str
     expected_source: str
     expected_sub_category: str
+    absent_sources: tuple[str, ...] = ()
 
 
 def ensure_ready() -> None:
@@ -135,7 +136,7 @@ def validate_retriever_case(
     docs = vectorstore.similarity_search(
         case.query,
         k=3,
-        filter={"category": case.category},
+        filter=build_retriever_filter(case),
     )
     failures: list[str] = []
 
@@ -149,8 +150,13 @@ def validate_retriever_case(
             f"expected={case.category} actual={top_doc.metadata.get('category')}"
         )
 
-    if case.expected_source not in [doc.metadata.get("source") for doc in docs]:
+    sources = [doc.metadata.get("source") for doc in docs]
+    if case.expected_source not in sources:
         failures.append(f"missing source: {case.expected_source}")
+
+    for source in case.absent_sources:
+        if source in sources:
+            failures.append(f"unexpected source: {source}")
 
     if top_doc.metadata.get("sub_category") != case.expected_sub_category:
         failures.append(
@@ -169,7 +175,7 @@ def print_retriever_results(
     docs = vectorstore.similarity_search(
         case.query,
         k=3,
-        filter={"category": case.category},
+        filter=build_retriever_filter(case),
     )
 
     print("=" * 60)
@@ -194,6 +200,15 @@ def print_retriever_results(
         print(f"sub_category: {doc.metadata.get('sub_category', 'unknown')}")
         print(f"content: {preview}")
         print()
+
+
+def build_retriever_filter(case: RetrieverCase) -> dict:
+    return {
+        "$and": [
+            {"category": case.category},
+            {"sub_category": case.expected_sub_category},
+        ]
+    }
 
 
 def run_retriever_cases(title: str, cases: list[RetrieverCase]) -> None:

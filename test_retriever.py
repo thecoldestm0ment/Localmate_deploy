@@ -1,9 +1,11 @@
 from test_retriever_admin import TEST_CASES as ADMIN_CASES
+from test_retriever_medical import TEST_CASES as MEDICAL_CASES
 from test_retriever_traffic import TEST_CASES as TRAFFIC_CASES
 from test.test_support import run_retriever_cases
 
 SMOKE_CASES = [
     *ADMIN_CASES,
+    *MEDICAL_CASES,
     *TRAFFIC_CASES,
 ]
 
