@@ -41,15 +41,16 @@ langchain-practice/
 │  ├─ admin.py
 │  ├─ admin_rules.py
 │  ├─ admin_content.py
+│  ├─ admin_content_data.py
 │  ├─ medical.py
 │  ├─ medical_rules.py
 │  ├─ medical_content.py
+│  ├─ medical_content_data.py
 │  ├─ traffic.py
 │  ├─ traffic_rules.py
 │  └─ traffic_content.py
 ├─ prompts/
 │  ├─ admin_prompts.py
-│  ├─ medical_prompts.py
 │  └─ traffic_prompts.py
 ├─ data/
 │  ├─ faq/
