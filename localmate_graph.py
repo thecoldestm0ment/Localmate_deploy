@@ -498,7 +498,9 @@ def should_require_previous_context(
         return True
     if context.get("question_mode") == QUESTION_MODE_NEW:
         return False
-    return answer_mode != ANSWER_MODE_DEFAULT or is_generic_follow_up(user_input)
+    if answer_mode == ANSWER_MODE_DETAIL:
+        return is_generic_follow_up(user_input) and route_with_rules(user_input) is None
+    return is_generic_follow_up(user_input)
 
 
 def normalize_category_result(result: CategoryResult, answer_mode: str) -> CategoryResult:
