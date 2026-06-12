@@ -12,14 +12,12 @@
 - 새 질문 / 후속 질문 대화 맥락 처리
 - Streamlit 채팅 UI 제공
 
-## 기술 스택
+## 사용한 기술
 
 - Python 3.12
-- LangChain, LangGraph
+- LangChain
 - Chroma
 - Google Gemini
-- Streamlit
-- python-dotenv, Pydantic
 
 ## 실행 방법
 
@@ -59,23 +57,9 @@ python build_vector_db.py
 streamlit run app.py
 ```
 
-## 테스트
-
-Retriever 동작 확인:
-
-```powershell
-python test_retriever.py
-```
-
-교통 카테고리 회귀 테스트:
-
-```powershell
-python -m test.test_localmate_traffic
-```
 
 ## 참고 사항
 
 - FAQ 문서를 수정한 뒤에는 `python build_vector_db.py`를 다시 실행해야 합니다.
-- `.env` 파일과 `chroma_db/`는 Git에 포함하지 않습니다.
 - 의료 답변은 진단이나 처방을 대신하지 않습니다.
 - 교통 답변은 실시간 위치, 요금, 막차 시간을 직접 조회하지 않습니다.
